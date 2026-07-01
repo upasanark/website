@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 3: Item Tokenization Methods</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .reveal pre { font-size: 0.55em; }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Slide 1: Title -->
+<section>
+  <h1>Chapter 3</h1>
+  <h2>Item Tokenization: The Most Important Design Decision</h2>
+  <p class="subtitle">RQ-VAE, OPQ, semantic hierarchies, hybrid approaches, and the collision ceiling</p>
+</section>
+
+<!-- Slide 2: Why Tokenization is the Ceiling -->
+<section>
+  <h2>Why Tokenization is the Ceiling</h2>
+  <div class="two-col">
+    <div>
+      <h3>Core Theorem (informal):</h3>
+      <p>Generation accuracy &le; tokenization quality</p>
+      <ul>
+        <li>If two items share the same token sequence (collision) &rarr; model <strong>CANNOT</strong> distinguish them</li>
+        <li>Collision rate directly bounds achievable Recall@1</li>
+        <li>All architecture improvements are meaningless if tokens are bad</li>
+        <li>Token quality &gt; architecture quality</li>
+      </ul>
+    </div>
+    <div>
+      <div class="math-box">
+        <p><strong>Bound:</strong></p>
+        <p>\[\text{max Recall@1} \leq \frac{|\text{unique token sequences}|}{|\text{total items}|}\]</p>
+      </div>
+      <div class="intuition">
+        "You can build the best language model in the world, but if your vocabulary is ambiguous, it will always hallucinate."
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 3: Taxonomy -->
+<section>
+  <h2>Taxonomy of Tokenization Methods</h2>
+  <pre><code class="language-text">Item Tokenization
+├── Learned (data-driven)
+│   ├── RQ-VAE (TIGER) — residual quantization
+│   ├── VQ-VAE — single-level vector quantization
+│   ├── OPQ — rotation + product quantization
+│   └── CF-augmented (CoFiRec)
+├── Semantic (attribute-based)
+│   ├── Category hierarchy
+│   ├── Mixed attributes (brand, price, intent)
+│   └── LLM-classified attributes
+├── Hybrid
+│   ├── Dual Identifiers (semantic + collaborative)
+│   ├── KGTB (knowledge graph → tokens)
+│   └── Attribute + learned specs (GenRec L1-L7)
+└── Hashing (LSH, learned hash)</code></pre>
+  <div class="intuition">Each approach makes different trade-offs between interpretability, uniqueness, and collaborative signal.</div>
+</section>
+
+<!-- Slide 4: RQ-VAE Mechanics -->
+<section>
+  <h2>RQ-VAE — Residual Quantization (TIGER, 2023)</h2>
+  <p>Input: item embedding \(e \in \mathbb{R}^d\) from content model or CF</p>
+  <div class="step"><strong>Step 1:</strong> Find nearest centroid: \(c_1 = \arg\min_k \|e - \text{codebook}_1[k]\|\)</div>
+  <div class="step"><strong>Step 2:</strong> Compute residual: \(r_1 = e - \text{codebook}_1[c_1]\)</div>
+  <div class="step"><strong>Step 3:</strong> Quantize residual: \(c_2 = \arg\min_k \|r_1 - \text{codebook}_2[k]\|\)</div>
+  <div class="step"><strong>Step 4:</strong> Repeat for \(K\) levels &rarr; Output: \([c_1, c_2, \ldots, c_K]\)</div>
+  <div class="math-box">
+    <p><strong>Reconstruction:</strong> \(\quad e \approx \sum_{k=1}^{K} \text{codebook}_k[c_k]\)</p>
+    <p><strong>Commitment Loss:</strong> \(\quad \mathcal{L} = \|e - \text{sg}(\hat{e})\|^2 + \beta\|\text{sg}(e) - \hat{e}\|^2\)</p>
+    <p><strong>Gradient:</strong> Straight-through estimator (copy gradients past argmin)</p>
+  </div>
+</section>
+
+<!-- Slide 5: RQ-VAE Properties -->
+<section>
+  <h2>RQ-VAE — Properties &amp; Limitations</h2>
+  <div class="two-col">
+    <div>
+      <h3>Properties ✓</h3>
+      <ul>
+        <li><strong>Hierarchical:</strong> Level 1 = coarse cluster, Level K = fine discrimination</li>
+        <li><strong>Semantic prefix:</strong> similar items &rarr; similar token prefixes (soft property)</li>
+        <li><strong>Uniqueness optimized:</strong> training minimizes collisions</li>
+        <li><strong>End-to-end:</strong> can train jointly with downstream task</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Limitations ✗</h3>
+      <ul>
+        <li><strong>Opaque codes:</strong> token [3, 17, 42, 8] means nothing to humans</li>
+        <li><strong>Cold-start:</strong> new items need encoder pass through RQ-VAE</li>
+        <li><strong>Can't constrain:</strong> "only generate electronics" is impossible (codes are opaque)</li>
+        <li><strong>Codebook collapse:</strong> some centroids go unused &rarr; wasted capacity</li>
+      </ul>
+    </div>
+  </div>
+  <div class="math-box">
+    <p>Typical config: codebook size = 256–1024 per level, K = 4–8 levels</p>
+  </div>
+</section>
+
+<!-- Slide 6: OPQ -->
+<section>
+  <h2>OPQ — Optimized Product Quantization</h2>
+  <p>Different from RQ-VAE: splits <strong>dimensions</strong> (not residuals)</p>
+  <div class="step"><strong>Step 1:</strong> Learn rotation matrix \(R\) to decorrelate dimensions</div>
+  <div class="step"><strong>Step 2:</strong> Split rotated embedding into \(M\) subvectors: \(\hat{e} = R \cdot e \rightarrow [\hat{e}_1, \ldots, \hat{e}_M]\)</div>
+  <div class="step"><strong>Step 3:</strong> Quantize each subvector independently (\(K\) centroids per subspace)</div>
+  <div class="step"><strong>Output:</strong> Item ID = \([c_1, c_2, \ldots, c_M]\) where each \(c_m \in \{1,\ldots,K\}\)</div>
+  <div class="math-box">
+    <p><strong>Key advantage:</strong> Each subspace captures a different "aspect" — one might capture price-range, another category, another brand style</p>
+  </div>
+  <div class="intuition">
+    Used for L7 spec tokens: OPQ on Titan Embed summaries → 4 spec tokens (256 codes each). These provide the discriminative power to break collisions in the semantic levels.
+  </div>
+</section>
+
+<!-- Slide 7: CoFiRec -->
+<section>
+  <h2>CoFiRec — Collaborative Filtering in Tokenization (Nov 2025)</h2>
+  <p><strong>Problem:</strong> Pure content tokens miss co-purchase/co-interaction signal</p>
+  <div class="step"><strong>Stage 1:</strong> Content-based clustering (as in RQ-VAE)</div>
+  <div class="step"><strong>Stage 2:</strong> Refine cluster assignments using CF signal (co-interaction graph)</div>
+  <div class="step"><strong>Result:</strong> Items frequently co-purchased get similar token prefixes</div>
+  <div class="math-box">
+    <p>Tokens now encode <strong>BOTH</strong> content similarity AND collaborative similarity</p>
+    <p><strong>Key finding:</strong> +15–20% Recall improvement over content-only tokenization</p>
+  </div>
+  <div class="intuition">
+    "Tokenization quality IS the ceiling." CoFiRec proves that better tokens &gt; better architecture. The CF signal from graph propagation directly improves token quality.
+  </div>
+</section>
+
+<!-- Slide 8: Semantic / Attribute-Based -->
+<section>
+  <h2>Semantic / Attribute-Based Tokenization</h2>
+  <p>Use human-interpretable attributes as tokens directly</p>
+  <div class="two-col">
+    <div>
+      <h3>Simple Hierarchy:</h3>
+      <p>Category → Subcategory → Brand → Price Tier</p>
+      <h3>Rich Hierarchy (GenRec):</h3>
+      <p>Family(L1) → Ecosystem(L3) → Brand(L4) → Price(L5) → Intent(L6) → Specs(L7)</p>
+      <h3>LLM-classified:</h3>
+      <p>Prompt LLM to classify items into categories/intents</p>
+    </div>
+    <div>
+      <h3>Collision Handling:</h3>
+      <p>Multiple items can share same attribute tuple</p>
+      <div class="step"><strong>Solution 1:</strong> Add spec tokens (learned) to increase uniqueness</div>
+      <div class="step"><strong>Solution 2:</strong> Item ID head for de-collision at inference</div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 9: Comparison Table -->
+<section>
+  <h2>Learned vs Semantic — Comparison</h2>
+  <table>
+    <thead>
+      <tr><th>Property</th><th>Learned (RQ-VAE)</th><th>Semantic (Attributes)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Interpretability</td><td>✗ Opaque codes</td><td>✓ Human-readable levels</td></tr>
+      <tr><td>Cold-start</td><td>✗ Needs encoder pass</td><td>✓ Attributes known at creation</td></tr>
+      <tr><td>Uniqueness</td><td>~95–99% (optimized)</td><td>~70–90% (depends on schema)</td></tr>
+      <tr><td>Constrained generation</td><td>Hard (codes opaque)</td><td>Trivial (filter by attribute)</td></tr>
+      <tr><td>Collaborative signal</td><td>Via embedding input</td><td>✗ Unless CF-augmented</td></tr>
+      <tr><td>Update cost</td><td>Retrain codebook</td><td>Just assign attributes</td></tr>
+      <tr><td>Vocabulary size</td><td>Small (256–1024/level)</td><td>Varies (18 families, 50 brands…)</td></tr>
+    </tbody>
+  </table>
+  <div class="intuition">Neither approach dominates — the best systems combine both (hybrid).</div>
+</section>
+
+<!-- Slide 10: Hybrid Approaches -->
+<section>
+  <h2>Hybrid Approaches</h2>
+  <div class="step">
+    <strong>Dual Identifiers (SIGIR-AP 2025):</strong> Two decoder heads — one generates semantic tokens, one generates RQ-VAE codes. Score = combination of both generation probabilities.
+  </div>
+  <div class="step">
+    <strong>KGTB:</strong> Knowledge graph entity path = token path. Items inherit tokens from their KG position (entity → parent → root).
+  </div>
+  <div class="step">
+    <strong>GenRec (Your approach):</strong> L1–L6 semantic (interpretable, constrainable) + L7 learned OPQ (discriminative).
+    <ul>
+      <li>L1–L6: 18 + 4 + 50 + 4 + 18 = &lt;100 codes total (human-readable)</li>
+      <li>L7a–d: OPQ on Titan Embed → 256 codes × 4 subspaces</li>
+      <li>Result: ~90% unique among 45K items</li>
+    </ul>
+  </div>
+</section>
+
+<!-- Slide 11: Collision Analysis -->
+<section>
+  <h2>Collision Analysis — The Practical Ceiling</h2>
+  <div class="math-box">
+    <p><strong>Definition:</strong> Collision = multiple items share the SAME complete token sequence</p>
+    <p><strong>Impact:</strong> If 3 items collide → model can't distinguish → Recall@1 ≤ 1/3 for those items</p>
+    <p><strong>Theoretical max:</strong> \(\text{Recall@1}_{\max} = \frac{|\text{unique items}|}{|\text{total items}|}\)</p>
+  </div>
+  <h3>Reducing Collisions:</h3>
+  <div class="two-col">
+    <div>
+      <ul>
+        <li>More token levels (deeper hierarchy)</li>
+        <li>Larger codebook per level</li>
+        <li>Better embedding input (more distinctive)</li>
+        <li>Domain-specific attributes</li>
+      </ul>
+    </div>
+    <div>
+      <div class="intuition">
+        90% unique → max token-only R@1 ≈ 0.90<br><br>
+        With ID head: can recover some collisions via discriminative scoring at inference.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 12: Practical Design Decisions -->
+<section>
+  <h2>Practical Design Decisions</h2>
+  <table>
+    <thead>
+      <tr><th>Paper</th><th>Levels</th><th>Codebook/level</th><th>Type</th><th>Joint training?</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>TIGER</td><td>4</td><td>256</td><td>Learned (RQ-VAE)</td><td>Yes</td></tr>
+      <tr><td>CoFiRec</td><td>4</td><td>512</td><td>Learned + CF</td><td>Yes</td></tr>
+      <tr><td>GenRec</td><td>9</td><td>Mixed (18–256)</td><td>Hybrid</td><td>Yes</td></tr>
+    </tbody>
+  </table>
+  <div class="math-box">
+    <p><strong>GenRec breakdown:</strong></p>
+    <p>L1(18) → L3(4) → L4(50) → L5(4) → L6(18) → L7a(256) → L7b(256) → L7c(256) → L7d(256)</p>
+    <p>Theoretical capacity: 18 × 4 × 50 × 4 × 18 × 256⁴ = ~1.4 × 10¹⁴ unique sequences</p>
+  </div>
+  <div class="intuition">More levels with smaller codebooks often beat fewer levels with larger codebooks — hierarchical decomposition wins.</div>
+</section>
+
+<!-- Slide 13: Summary -->
+<section>
+  <h2>Chapter 3 — Summary</h2>
+  <div class="two-col">
+    <div>
+      <h3>Key Takeaways:</h3>
+      <ol>
+        <li><strong>Tokenization is the ceiling</strong> — collision rate directly bounds max Recall@1</li>
+        <li><strong>RQ-VAE</strong> quantizes residuals hierarchically; good uniqueness, but opaque</li>
+        <li><strong>OPQ</strong> splits dimensions after rotation; each subspace captures different aspects</li>
+        <li><strong>CoFiRec</strong> adds CF signal to tokenization → +15–20% Recall</li>
+        <li><strong>Semantic tokens</strong> are interpretable and constrainable but have more collisions</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Design Principles:</h3>
+      <ol>
+        <li>Hybrid &gt; pure approach</li>
+        <li>Coarse levels → semantic; fine levels → learned</li>
+        <li>CF signal improves any tokenization</li>
+        <li>Measure collision rate as primary quality metric</li>
+        <li>More levels with small codebooks &gt; fewer levels with big codebooks</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 14: Quiz Part 1 -->
+<section>
+  <h2>Quiz — Item Tokenization</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> If 10% of items have collisions, what is the theoretical maximum Recall@1 from token generation alone?
+  </div>
+  <div class="fragment quiz-a">A: <strong>≈ 0.90</strong>. Max Recall@1 = unique_items / total_items. If 10% collide, only 90% can ever be correctly identified by tokens alone. The remaining 10% need a disambiguation mechanism (ID head).</div>
+  <div class="quiz-q">
+    <strong>Q2:</strong> What is the key difference between RQ-VAE and OPQ in how they decompose embeddings?
+  </div>
+  <div class="fragment quiz-a">A: <strong>RQ-VAE</strong> quantizes <em>residuals</em> (error from previous level) sequentially. <strong>OPQ</strong> rotates and splits <em>dimensions</em> into subvectors, quantizing each independently. RQ-VAE is hierarchical depth; OPQ is parallel subspaces.</div>
+  <div class="quiz-q">
+    <strong>Q3:</strong> How does CoFiRec improve over standard content-based tokenization?
+  </div>
+  <div class="fragment quiz-a">A: CoFiRec refines content-based cluster assignments using <strong>collaborative filtering signal</strong> (co-interaction graph). Items that are frequently co-purchased get similar token prefixes, encoding both content AND collaborative similarity. This yields +15–20% Recall improvement.</div>
+</section>
+
+<!-- Slide 15: Quiz Part 2 -->
+<section>
+  <h2>Quiz — Item Tokenization (continued)</h2>
+  <div class="quiz-q">
+    <strong>Q4:</strong> In the GenRec hybrid approach, why is L7 learned (OPQ) instead of semantic like L1–L6?
+  </div>
+  <div class="fragment quiz-a">A: L1–L6 semantic levels provide interpretability and constraint support, but they can't uniquely identify items (too many share the same attributes). <strong>L7 learned tokens</strong> (OPQ on Titan Embed) add discriminative power, breaking collisions by capturing fine-grained item differences that don't map to clean human attributes. Result: 90% uniqueness vs ~60% with semantic alone.</div>
+  <div class="quiz-q">
+    <strong>Q5:</strong> Why do Dual Identifier systems use two separate decoder heads instead of one combined token sequence?
+  </div>
+  <div class="fragment quiz-a">A: Semantic tokens and collaborative tokens live in <strong>different spaces</strong> with different vocabularies and different learned distributions. A single sequence would force the model to context-switch between two incompatible token types. Two heads let each specialize: semantic head provides interpretable constraints; collaborative head provides fine-grained ranking. The combined score fuses both signals.</div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>

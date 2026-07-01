@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 4: Multi-Interest and Disentangled Graph Methods</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .msg-arrow { stroke: #f97316; stroke-width: 2; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+  <h1>Chapter 4</h1>
+  <h2>Multi-Interest &amp; Disentangled Graph Methods</h2>
+  <p class="subtitle">DGCF, PIMIRec, MisGCF, Personalized PageRank, explicit clustering, and normalization</p>
+</section>
+
+<!-- Slide 1: The Collapse Problem -->
+<section>
+  <h2>The Collapse Problem</h2>
+  <div class="two-col">
+    <div>
+      <h3>The "Average User" Fallacy</h3>
+      <p>A user buys: <strong>iPhone</strong>, <strong>yoga mat</strong>, <strong>cookbook</strong></p>
+      <div class="math-box">
+        \[e_u = \frac{1}{3}(e_{\text{electronics}} + e_{\text{sports}} + e_{\text{books}})\]
+      </div>
+      <p>Result: embedding sits in <em>no-man's-land</em> — close to <strong>none</strong> of the actual interests</p>
+      <div class="fragment step">Multi-interest: 3 separate embeddings, each meaningful and scorable</div>
+    </div>
+    <div>
+      <svg width="260" height="220">
+        <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/></marker></defs>
+        <!-- Interest clusters -->
+        <circle cx="60" cy="40" r="30" style="fill:none;stroke:#58a6ff;stroke-width:1;stroke-dasharray:4"/>
+        <text x="60" y="15" style="fill:#58a6ff;font-size:10px;text-anchor:middle">Electronics</text>
+        <circle cx="200" cy="50" r="30" style="fill:none;stroke:#4ade80;stroke-width:1;stroke-dasharray:4"/>
+        <text x="200" y="20" style="fill:#4ade80;font-size:10px;text-anchor:middle">Sports</text>
+        <circle cx="130" cy="180" r="30" style="fill:none;stroke:#f97316;stroke-width:1;stroke-dasharray:4"/>
+        <text x="130" y="210" style="fill:#f97316;font-size:10px;text-anchor:middle">Books</text>
+        <!-- Average point (useless middle) -->
+        <circle cx="130" cy="90" r="8" style="fill:#ef4444"/>
+        <text x="130" y="115" style="fill:#ef4444;font-size:11px;text-anchor:middle">mean(u) ✗</text>
+        <!-- Dotted lines from clusters to average -->
+        <line x1="60" y1="40" x2="130" y2="90" style="stroke:#666;stroke-dasharray:3;stroke-width:1"/>
+        <line x1="200" y1="50" x2="130" y2="90" style="stroke:#666;stroke-dasharray:3;stroke-width:1"/>
+        <line x1="130" y1="180" x2="130" y2="90" style="stroke:#666;stroke-dasharray:3;stroke-width:1"/>
+      </svg>
+    </div>
+  </div>
+  <div class="intuition">Averaging contradicts. You don't become a jazz-rock-classical fan by averaging — you're three fans in one person.</div>
+</section>
+
+<!-- Slide 2: DGCF -->
+<section>
+  <h2>DGCF — Disentangled Graph Collaborative Filtering</h2>
+  <p class="subtitle">Wang et al., 2020</p>
+  <div class="two-col">
+    <div>
+      <h3>Core Idea</h3>
+      <p>Split embedding into \(K\) independent intent channels:</p>
+      <div class="math-box">
+        \[e_u = [e_u^1;\; e_u^2;\; \ldots;\; e_u^K]\]
+      </div>
+      <div class="fragment step"><strong>Routing:</strong> for each edge \((u,i)\), learn which channel it belongs to</div>
+      <div class="fragment math-box">
+        \[p(k|u,i) = \text{softmax}(e_u^k \cdot e_i^k)\]
+        <p style="font-size:0.8em;color:#8b949e">Iterative routing — similar to capsule networks</p>
+      </div>
+    </div>
+    <div>
+      <h3>Channel-Specific Propagation</h3>
+      <div class="math-box">
+        \[e_u^{k,(l+1)} = \sum_{i \in \mathcal{N}(u)} p(k|u,i) \cdot \frac{1}{\sqrt{d_u \cdot d_i}} \cdot e_i^{k,(l)}\]
+      </div>
+      <div class="fragment step" style="border-left-color:#ef4444">
+        <strong>Problems:</strong>
+        <ul>
+          <li>Channels are <em>latent</em> — no interpretability guarantee</li>
+          <li>Iterative routing inside propagation = expensive \(O(K \cdot |E|)\)</li>
+          <li>Routing decisions are soft, unstable during training</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="intuition">DGCF asks "which interest does this edge serve?" but gives an uninterpretable answer.</div>
+</section>
+
+<!-- Slide 3: PIMIRec -->
+<section>
+  <h2>PIMIRec — Prototype-Based Multi-Interest</h2>
+  <div class="two-col">
+    <div>
+      <div class="step"><strong>Step 1:</strong> Cluster user's interacted items into \(K\) groups</div>
+      <div class="fragment step"><strong>Step 2:</strong> \(\text{prototype}_k = \text{attn-weighted mean of items in cluster } k\)</div>
+      <div class="fragment step"><strong>Step 3:</strong> Score candidate against ALL prototypes, take max</div>
+      <div class="fragment math-box">
+        \[\text{score}(u, i) = \max_k \left( \text{prototype}_u^k \cdot e_i \right)\]
+      </div>
+      <div class="fragment" style="margin-top:15px">
+        <span style="color:#4ade80">✓ Strength:</span> Explicit, interpretable interests<br>
+        <span style="color:#ef4444">✗ Weakness:</span> NO collaborative propagation — prototypes from user's own history only
+      </div>
+    </div>
+    <div>
+      <svg width="240" height="200">
+        <!-- User prototypes -->
+        <circle cx="50" cy="50" r="15" style="fill:#58a6ff;opacity:0.7"/>
+        <text x="50" y="55" style="fill:#fff;font-size:10px;text-anchor:middle">P₁</text>
+        <circle cx="50" cy="120" r="15" style="fill:#4ade80;opacity:0.7"/>
+        <text x="50" y="125" style="fill:#fff;font-size:10px;text-anchor:middle">P₂</text>
+        <circle cx="50" cy="180" r="15" style="fill:#f97316;opacity:0.7"/>
+        <text x="50" y="185" style="fill:#fff;font-size:10px;text-anchor:middle">P₃</text>
+        <text x="50" y="20" style="fill:#8b949e;font-size:11px;text-anchor:middle">User Prototypes</text>
+        <!-- Candidate item -->
+        <circle cx="190" cy="90" r="12" style="fill:#a78bfa"/>
+        <text x="190" y="94" style="fill:#fff;font-size:10px;text-anchor:middle">i</text>
+        <text x="190" y="70" style="fill:#8b949e;font-size:11px;text-anchor:middle">Candidate</text>
+        <!-- Score lines -->
+        <line x1="65" y1="50" x2="178" y2="90" style="stroke:#58a6ff;stroke-width:2;stroke-dasharray:4"/>
+        <line x1="65" y1="120" x2="178" y2="90" style="stroke:#4ade80;stroke-width:3"/>
+        <line x1="65" y1="180" x2="178" y2="90" style="stroke:#f97316;stroke-width:1;stroke-dasharray:4"/>
+        <text x="140" y="140" style="fill:#4ade80;font-size:10px;text-anchor:middle">max score ✓</text>
+      </svg>
+    </div>
+  </div>
+  <div class="intuition">PIMIRec knows WHAT you like but not what PEOPLE LIKE YOU like.</div>
+</section>
+
+<!-- Slide 4: MisGCF -->
+<section>
+  <h2>MisGCF — Multi-Intent Separation Post-Propagation</h2>
+  <div class="two-col">
+    <div>
+      <h3>Architecture: Propagate First, Then Separate</h3>
+      <div class="step"><strong>Layer 1:</strong> Standard graph propagation → single embedding per user</div>
+      <div class="fragment step"><strong>Intent Extraction:</strong> Multi-head FFN splits into \(K\) intent vectors</div>
+      <div class="fragment math-box">
+        \[[z_u^1, \ldots, z_u^K] = \text{MultiHeadFFN}(e_u^{\text{propagated}})\]
+      </div>
+      <div class="fragment step"><strong>Layer 2:</strong> Propagate intent-separated embeddings again</div>
+      <div class="fragment step"><strong>Repeat:</strong> propagation → separation → propagation</div>
+    </div>
+    <div>
+      <h3>Strengths &amp; Weaknesses</h3>
+      <div style="margin-top:10px">
+        <span style="color:#4ade80">✓</span> Gets collaborative signal + multi-interest<br><br>
+        <span style="color:#ef4444">✗</span> With pre-trained embeddings, FFN <strong>distorts</strong> the original latent space
+      </div>
+      <svg width="220" height="100" style="margin-top:15px">
+        <!-- Pipeline diagram -->
+        <rect x="5" y="35" width="50" height="30" rx="4" style="fill:#21262d;stroke:#58a6ff"/>
+        <text x="30" y="55" style="fill:#58a6ff;font-size:9px;text-anchor:middle">Propagate</text>
+        <line x1="55" y1="50" x2="70" y2="50" class="msg-arrow"/>
+        <rect x="70" y="35" width="50" height="30" rx="4" style="fill:#21262d;stroke:#a78bfa"/>
+        <text x="95" y="55" style="fill:#a78bfa;font-size:9px;text-anchor:middle">Separate</text>
+        <line x1="120" y1="50" x2="135" y2="50" class="msg-arrow"/>
+        <rect x="135" y="35" width="50" height="30" rx="4" style="fill:#21262d;stroke:#58a6ff"/>
+        <text x="160" y="55" style="fill:#58a6ff;font-size:9px;text-anchor:middle">Propagate</text>
+        <line x1="185" y1="50" x2="200" y2="50" class="msg-arrow"/>
+        <text x="210" y="55" style="fill:#8b949e;font-size:9px;text-anchor:middle">...</text>
+      </svg>
+    </div>
+  </div>
+  <div class="intuition">MisGCF says "let the graph teach you, then figure out your interests" — but the FFN reshaping breaks pretrained embeddings.</div>
+</section>
+
+<!-- Slide 5: Comparison Table -->
+<section>
+  <h2>Comparison — Design Choices</h2>
+  <table>
+    <thead>
+      <tr><th>Aspect</th><th>DGCF</th><th>PIMIRec</th><th>MisGCF</th><th>Ideal?</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Collaborative signal</td><td style="color:#4ade80">✓ propagation</td><td style="color:#ef4444">✗ user-only</td><td style="color:#4ade80">✓ propagation</td><td style="color:#4ade80">✓</td></tr>
+      <tr><td>Multi-interest</td><td style="color:#4ade80">✓ channels</td><td style="color:#4ade80">✓ prototypes</td><td style="color:#4ade80">✓ heads</td><td style="color:#4ade80">✓</td></tr>
+      <tr><td>Interpretable</td><td style="color:#ef4444">✗ latent</td><td style="color:#4ade80">✓ item clusters</td><td style="color:#eab308">~ partial</td><td style="color:#4ade80">✓</td></tr>
+      <tr><td>Pre-trained emb friendly</td><td style="color:#eab308">~ partial</td><td style="color:#4ade80">✓</td><td style="color:#ef4444">✗ distorts</td><td style="color:#4ade80">✓</td></tr>
+      <tr><td>Scalable</td><td style="color:#ef4444">✗ routing</td><td style="color:#4ade80">✓</td><td style="color:#4ade80">✓</td><td style="color:#4ade80">✓</td></tr>
+    </tbody>
+  </table>
+  <div class="fragment intuition">
+    <strong>Gap:</strong> No existing method achieves all five properties simultaneously.<br>
+    This motivates the <em>explicit clustering + propagation</em> approach (coming next).
+  </div>
+</section>
+
+<!-- Slide 6: Personalized PageRank -->
+<section>
+  <h2>Personalized PageRank for Interest-Aware Propagation</h2>
+  <div class="two-col">
+    <div>
+      <h3>Standard PageRank</h3>
+      <div class="math-box">
+        \[\pi = \alpha \cdot A_{\text{norm}} \cdot \pi + (1-\alpha) \cdot e_{\text{uniform}}\]
+      </div>
+      <h3 class="fragment">Personalized PageRank (PPR)</h3>
+      <div class="fragment math-box">
+        \[\text{PPR}(u) = \alpha \cdot D^{-1}A \cdot \text{PPR}(u) + (1-\alpha) \cdot e_u\]
+        <p style="font-size:0.8em;color:#8b949e">Restart from specific node → importance relative to source</p>
+      </div>
+      <div class="fragment step">
+        <strong>Connection to APPNP:</strong>
+        \[H^{(K)} = \alpha (D^{-\frac{1}{2}}AD^{-\frac{1}{2}}) H^{(K-1)} + (1-\alpha) H^{(0)}\]
+      </div>
+    </div>
+    <div>
+      <h3>Why for Recommendations?</h3>
+      <svg width="220" height="160">
+        <!-- Source user -->
+        <circle cx="30" cy="80" r="14" style="fill:#58a6ff"/>
+        <text x="30" y="84" style="fill:#fff;font-size:10px;text-anchor:middle">u</text>
+        <!-- 1-hop -->
+        <circle cx="100" cy="40" r="10" style="fill:#58a6ff;opacity:0.7"/>
+        <circle cx="100" cy="80" r="10" style="fill:#58a6ff;opacity:0.7"/>
+        <circle cx="100" cy="120" r="10" style="fill:#58a6ff;opacity:0.5"/>
+        <!-- 2-hop -->
+        <circle cx="170" cy="30" r="8" style="fill:#58a6ff;opacity:0.3"/>
+        <circle cx="170" cy="70" r="8" style="fill:#58a6ff;opacity:0.3"/>
+        <circle cx="170" cy="110" r="8" style="fill:#58a6ff;opacity:0.2"/>
+        <circle cx="170" cy="140" r="8" style="fill:#58a6ff;opacity:0.15"/>
+        <!-- Edges -->
+        <line x1="44" y1="80" x2="90" y2="40" class="edge"/>
+        <line x1="44" y1="80" x2="90" y2="80" class="edge"/>
+        <line x1="44" y1="80" x2="90" y2="120" class="edge"/>
+        <line x1="110" y1="40" x2="162" y2="30" class="edge"/>
+        <line x1="110" y1="40" x2="162" y2="70" class="edge"/>
+        <line x1="110" y1="80" x2="162" y2="70" class="edge"/>
+        <line x1="110" y1="120" x2="162" y2="110" class="edge"/>
+        <line x1="110" y1="120" x2="162" y2="140" class="edge"/>
+        <!-- Labels -->
+        <text x="100" y="155" style="fill:#8b949e;font-size:10px;text-anchor:middle">PPR decays with distance</text>
+        <text x="30" y="105" style="fill:#f97316;font-size:9px;text-anchor:middle">α=teleport</text>
+      </svg>
+      <div class="fragment intuition" style="font-size:0.85em">Multi-hop with teleportation: prevents over-smoothing by always mixing in the source signal.</div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 7: The Explicit Clustering Approach -->
+<section>
+  <h2>The Explicit Clustering Approach</h2>
+  <div class="two-col">
+    <div>
+      <h3>Core Insight</h3>
+      <p>Ground interests in <strong>semantic clusters of items</strong>, not latent channels</p>
+      <div class="step"><strong>Step 1:</strong> GMM clustering of item embeddings → soft assignments<br>
+        <span style="font-size:0.85em;color:#8b949e">\(p(\text{cluster}_k \,|\, \text{item})\) for all \(K\) clusters</span></div>
+      <div class="fragment step"><strong>Step 2:</strong> Tag each edge with cluster identity (primary + secondary)</div>
+      <div class="fragment step"><strong>Step 3:</strong> Propagate PER CLUSTER — user gets separate embedding per interest</div>
+    </div>
+    <div>
+      <h3>Advantages</h3>
+      <ul>
+        <li class="fragment"><span style="color:#4ade80">✓</span> <strong>Interpretable</strong> from start (cluster ≈ product category)</li>
+        <li class="fragment"><span style="color:#4ade80">✓</span> <strong>Compatible</strong> with pre-trained embeddings (no distortion)</li>
+        <li class="fragment"><span style="color:#4ade80">✓</span> <strong>Collaborative</strong> (propagation across users)</li>
+        <li class="fragment"><span style="color:#4ade80">✓</span> <strong>Variable</strong> interests per user (depends on interaction diversity)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="fragment intuition">Don't discover interests from scratch — start with known item structure and let the graph refine it.</div>
+</section>
+
+<!-- Slide 8: Normalization and Re-anchoring -->
+<section>
+  <h2>Normalization &amp; Re-Anchoring</h2>
+  <div class="two-col">
+    <div>
+      <h3>The Problem</h3>
+      <p>After multiple propagation layers, cluster embeddings <strong>merge</strong> (over-smoothing per cluster)</p>
+      <h3 class="fragment">Solution: Decouple Direction &amp; Magnitude</h3>
+      <div class="fragment math-box">
+        <p><strong>Direction</strong> (interest identity):</p>
+        \[\hat{\mu}_{u,c} = \frac{\mu_{u,c}}{\|\mu_{u,c}\|}\]
+        <p><strong>Magnitude</strong> (importance/mass):</p>
+        \[\text{mass}_{u,c} = \|\mu_{u,c}\|_{\text{original}}\]
+      </div>
+      <div class="fragment step">
+        <strong>Re-anchor:</strong> mix propagated with original pretrained embedding
+        \[\mu_{i,c}^{(2)} = \beta \cdot \mu_{i,c}^{\text{prop}} + (1-\beta) \cdot e_i^{\text{pretrained}}\]
+        <span style="font-size:0.8em;color:#8b949e">(for primary cluster only)</span>
+      </div>
+    </div>
+    <div>
+      <h3>Visual Comparison</h3>
+      <svg width="220" height="180">
+        <!-- Without normalization -->
+        <text x="55" y="15" style="fill:#ef4444;font-size:11px;text-anchor:middle">Without norm</text>
+        <circle cx="40" cy="70" r="5" style="fill:#58a6ff"/>
+        <circle cx="50" cy="65" r="5" style="fill:#4ade80"/>
+        <circle cx="45" cy="75" r="5" style="fill:#f97316"/>
+        <circle cx="55" cy="72" r="5" style="fill:#a78bfa"/>
+        <text x="55" y="100" style="fill:#ef4444;font-size:10px;text-anchor:middle">collapsed!</text>
+        <!-- With normalization -->
+        <text x="165" y="15" style="fill:#4ade80;font-size:11px;text-anchor:middle">With norm</text>
+        <circle cx="140" cy="45" r="5" style="fill:#58a6ff"/>
+        <circle cx="190" cy="55" r="5" style="fill:#4ade80"/>
+        <circle cx="150" cy="100" r="5" style="fill:#f97316"/>
+        <circle cx="185" cy="110" r="5" style="fill:#a78bfa"/>
+        <text x="165" y="140" style="fill:#4ade80;font-size:10px;text-anchor:middle">separated ✓</text>
+        <!-- Arrow between -->
+        <line x1="75" y1="70" x2="120" y2="70" class="msg-arrow"/>
+        <text x="98" y="60" style="fill:#f97316;font-size:9px;text-anchor:middle">normalize</text>
+      </svg>
+      <div class="fragment intuition" style="font-size:0.85em">
+        Direction = what (identity).<br>
+        Magnitude = how much (importance).<br>
+        Separating them prevents dominant clusters from absorbing others.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 9: Summary -->
+<section>
+  <h2>Summary — Chapter 4</h2>
+  <div class="step"><strong>1. The Problem:</strong> Single embeddings average away multi-interest structure</div>
+  <div class="fragment step"><strong>2. DGCF:</strong> Latent channel routing — collaborative but uninterpretable and expensive</div>
+  <div class="fragment step"><strong>3. PIMIRec:</strong> Prototype-based — interpretable but no collaborative signal</div>
+  <div class="fragment step"><strong>4. MisGCF:</strong> Post-propagation separation — collaborative but distorts pretrained space</div>
+  <div class="fragment step"><strong>5. PPR:</strong> Teleportation-based propagation prevents over-smoothing, enables multi-hop</div>
+  <div class="fragment step"><strong>6. Explicit Clustering:</strong> GMM + per-cluster propagation achieves all five desiderata</div>
+  <div class="fragment step"><strong>7. Normalization:</strong> Direction/magnitude decoupling + re-anchoring keeps interests separated</div>
+  <div class="fragment intuition">
+    Key takeaway: the best multi-interest approach grounds interests in <em>known item structure</em> (clusters) rather than discovering them from scratch (latent channels).
+  </div>
+</section>
+
+<!-- Slide 10: Quiz Part 1 -->
+<section>
+  <h2>Quiz — Part 1</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> In DGCF, how does routing probability \(p(k|u,i)\) determine which channel an edge belongs to?
+  </div>
+  <div class="fragment quiz-a">A: It computes \(p(k|u,i) = \text{softmax}(e_u^k \cdot e_i^k)\) — the dot product of the user and item embeddings <em>within each channel</em>. The channel with the highest similarity "claims" the edge (soft assignment). This means the edge contributes most to the channel where user and item are already aligned.</div>
+
+  <div class="quiz-q">
+    <strong>Q2:</strong> PIMIRec has no collaborative signal. Give a concrete example of what it misses.
+  </div>
+  <div class="fragment quiz-a">A: If users who buy yoga mats also tend to buy meditation cushions, PIMIRec won't surface meditation cushions unless this user <em>specifically</em> bought one. It only knows about items in your own history — it can't learn from the behavior of similar users, which is the core value of collaborative filtering.</div>
+
+  <div class="quiz-q">
+    <strong>Q3:</strong> Why does MisGCF struggle with pre-trained ASIN embeddings but not random init?
+  </div>
+  <div class="fragment quiz-a">A: The multi-head FFN is a nonlinear projection that reshapes the embedding space. With random init, there's no structure to preserve — the FFN can freely organize the space. But pretrained embeddings already encode meaningful semantic structure (distances, clusters). The FFN distorts these learned relationships, destroying information that took millions of samples to learn.</div>
+</section>
+
+<!-- Slide 11: Quiz Part 2 -->
+<section>
+  <h2>Quiz — Part 2</h2>
+  <div class="quiz-q">
+    <strong>Q4:</strong> In PPR with restart \(\alpha = 0.15\), what fraction of "attention" stays within 1-hop?
+  </div>
+  <div class="fragment quiz-a">A: At each step, \((1-\alpha) = 0.85\) of the probability mass is distributed to neighbors, while \(\alpha = 0.15\) teleports back. After 1 step: 85% reaches 1-hop neighbors. After 2 steps: only \(0.85 \times 0.85 = 72\%\) of the <em>remaining</em> mass goes further. So the majority (~85%) of attention stays within 1-hop, with exponential decay beyond. This is what prevents over-smoothing.</div>
+
+  <div class="quiz-q">
+    <strong>Q5:</strong> After normalization, user \(u\) has cluster embeddings with directions \([0.7, 0.3]\) (electronics) and \([0.2, 0.8]\) (books), and masses 0.8 and 0.2. Which interest dominates scoring?
+  </div>
+  <div class="fragment quiz-a">A: <strong>Electronics dominates</strong> — it has mass 0.8 vs 0.2 for books. The direction tells us <em>what</em> the interest is (its position in embedding space), while the mass tells us <em>how strongly</em> it contributes to scoring. An item aligned with the electronics direction gets its similarity scaled by 0.8, while a books-aligned item gets scaled by only 0.2. Direction = identity, magnitude = importance weight.</div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>

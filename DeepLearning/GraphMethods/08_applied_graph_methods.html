@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 8: Applied Graph Methods — P13N Personalization</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .msg-arrow { stroke: #f97316; stroke-width: 2; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+  <h1>Chapter 8</h1>
+  <h2>Applied Graph Methods: P13N Personalization</h2>
+  <p class="subtitle">Multi-interest propagation, hierarchical co-interaction graphs, graph embeddings at scale, and industry GNN applications</p>
+</section>
+
+<!-- Slide 1: System Overview -->
+<section>
+  <h2>System Overview — Three Graph Applications</h2>
+  <svg width="750" height="180">
+    <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/></marker></defs>
+    <!-- System A -->
+    <rect x="10" y="20" width="220" height="140" rx="8" style="fill:#1c3a5e;stroke:#58a6ff;stroke-width:2"/>
+    <text x="120" y="45" style="fill:#58a6ff;font-size:13px;text-anchor:middle;font-weight:bold">System A</text>
+    <text x="120" y="65" style="fill:#fff;font-size:11px;text-anchor:middle">Multi-Interest Graph</text>
+    <text x="120" y="82" style="fill:#fff;font-size:11px;text-anchor:middle">Propagation</text>
+    <text x="120" y="105" style="fill:#8b949e;font-size:10px;text-anchor:middle">CLP Campaign Targeting</text>
+    <text x="120" y="125" style="fill:#4ade80;font-size:11px;text-anchor:middle">28M users · 423M edges</text>
+    <text x="120" y="148" style="fill:#f97316;font-size:10px;text-anchor:middle">AUC: 0.868</text>
+    <!-- System B -->
+    <rect x="260" y="20" width="220" height="140" rx="8" style="fill:#2d1f3d;stroke:#a78bfa;stroke-width:2"/>
+    <text x="370" y="45" style="fill:#a78bfa;font-size:13px;text-anchor:middle;font-weight:bold">System B</text>
+    <text x="370" y="65" style="fill:#fff;font-size:11px;text-anchor:middle">Hierarchical Co-Interaction</text>
+    <text x="370" y="82" style="fill:#fff;font-size:11px;text-anchor:middle">Graph</text>
+    <text x="370" y="105" style="fill:#8b949e;font-size:10px;text-anchor:middle">Category Prediction</text>
+    <text x="370" y="125" style="fill:#4ade80;font-size:11px;text-anchor:middle">250K ASINs · 5-10 categories</text>
+    <text x="370" y="148" style="fill:#f97316;font-size:10px;text-anchor:middle">No model needed</text>
+    <!-- System C -->
+    <rect x="510" y="20" width="220" height="140" rx="8" style="fill:#1a3d2a;stroke:#4ade80;stroke-width:2"/>
+    <text x="620" y="45" style="fill:#4ade80;font-size:13px;text-anchor:middle;font-weight:bold">System C</text>
+    <text x="620" y="65" style="fill:#fff;font-size:11px;text-anchor:middle">Graph Propagation</text>
+    <text x="620" y="82" style="fill:#fff;font-size:11px;text-anchor:middle">Embeddings</text>
+    <text x="620" y="105" style="fill:#8b949e;font-size:10px;text-anchor:middle">Bestseller Recommendations</text>
+    <text x="620" y="125" style="fill:#4ade80;font-size:11px;text-anchor:middle">150M users · 4K items</text>
+    <text x="620" y="148" style="fill:#f97316;font-size:10px;text-anchor:middle">256-dim embeddings</text>
+  </svg>
+  <div class="intuition">Same fundamental technique — graph propagation — applied at three different scales and for three different tasks. The graph is the connective tissue across all three systems.</div>
+</section>

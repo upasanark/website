@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 1: Sequential Recommendation Foundations</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .timeline-line { stroke: #58a6ff; stroke-width: 3; }
+  .timeline-dot { fill: #58a6ff; }
+  .timeline-label { fill: #fff; font-size: 11px; text-anchor: middle; }
+  .timeline-year { fill: #8b949e; font-size: 10px; text-anchor: middle; }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Slide 1: Title -->
+<section>
+  <h1>Chapter 1</h1>
+  <h2>Sequential Recommendation Foundations</h2>
+  <p class="subtitle">From Markov chains to Transformers — how we model user behavior as sequences</p>
+</section>
+
+<!-- Slide 2: The Sequential Recommendation Problem -->
+<section>
+  <h2>The Sequential Recommendation Problem</h2>
+  <div class="two-col">
+    <div>
+      <h3>Input</h3>
+      <p>User's ordered interaction history:</p>
+      <div class="math-box">
+        \[ s = [i_1, i_2, \ldots, i_t] \]
+      </div>
+      <h3>Output</h3>
+      <p>Predict next item \(i_{t+1}\)</p>
+      <h3>Why Sequence Matters</h3>
+      <ul>
+        <li>Temporal patterns (weekday vs weekend)</li>
+        <li>Session context (browsing intent)</li>
+        <li>Intent evolution (explore → decide → buy)</li>
+      </ul>
+    </div>
+    <div>
+      <svg width="280" height="200">
+        <!-- Sequence arrow -->
+        <line x1="20" y1="100" x2="260" y2="100" stroke="#555" stroke-width="2" marker-end="url(#arrow1)"/>
+        <defs><marker id="arrow1" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#58a6ff"/></marker></defs>
+        <!-- Items -->
+        <circle cx="50" cy="100" r="18" fill="#2d4a7a" stroke="#58a6ff" stroke-width="2"/>
+        <text x="50" y="105" class="label" style="font-size:11px">\(i_1\)</text>
+        <circle cx="110" cy="100" r="18" fill="#2d4a7a" stroke="#58a6ff" stroke-width="2"/>
+        <text x="110" y="105" class="label" style="font-size:11px">\(i_2\)</text>
+        <circle cx="170" cy="100" r="18" fill="#2d4a7a" stroke="#58a6ff" stroke-width="2"/>
+        <text x="170" y="105" class="label" style="font-size:11px">\(i_t\)</text>
+        <text x="140" y="75" class="label" style="font-size:10px;fill:#8b949e">···</text>
+        <!-- Prediction -->
+        <circle cx="240" cy="100" r="18" fill="#1a3d2a" stroke="#4ade80" stroke-width="2" stroke-dasharray="4"/>
+        <text x="240" y="105" class="label" style="font-size:10px;fill:#4ade80">\(i_{t+1}\)</text>
+        <text x="140" y="160" class="label" style="font-size:12px;fill:#8b949e">time →</text>
+      </svg>
+      <div class="intuition">
+        "Order matters. A user who browsed headphones then a phone case has different intent than one who browsed phone case then headphones."
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 3: Evolution of Sequential Methods -->
+<section>
+  <h2>Evolution of Sequential Methods</h2>
+  <svg width="750" height="220">
+    <!-- Timeline base line -->
+    <line x1="50" y1="120" x2="720" y2="120" class="timeline-line"/>
+    <!-- Markov Chains -->
+    <circle cx="100" cy="120" r="8" class="timeline-dot"/>
+    <text x="100" y="90" class="timeline-label">Markov</text>
+    <text x="100" y="105" class="timeline-label" style="font-size:9px">Chains</text>
+    <text x="100" y="150" class="timeline-year">2016</text>
+    <!-- GRU4Rec -->
+    <circle cx="230" cy="120" r="8" class="timeline-dot" style="fill:#f97316"/>
+    <text x="230" y="90" class="timeline-label">GRU4Rec</text>
+    <text x="230" y="105" class="timeline-label" style="font-size:9px">RNN-based</text>
+    <text x="230" y="150" class="timeline-year">2016</text>
+    <!-- SASRec -->
+    <circle cx="360" cy="120" r="8" class="timeline-dot" style="fill:#a78bfa"/>
+    <text x="360" y="90" class="timeline-label">SASRec</text>
+    <text x="360" y="105" class="timeline-label" style="font-size:9px">Causal Attention</text>
+    <text x="360" y="150" class="timeline-year">2018</text>
+    <!-- BERT4Rec -->
+    <circle cx="450" cy="120" r="8" class="timeline-dot" style="fill:#4ade80"/>
+    <text x="450" y="90" class="timeline-label">BERT4Rec</text>
+    <text x="450" y="105" class="timeline-label" style="font-size:9px">Bidirectional</text>
+    <text x="450" y="150" class="timeline-year">2019</text>
+    <!-- TIGER -->
+    <circle cx="570" cy="120" r="8" class="timeline-dot" style="fill:#f472b6"/>
+    <text x="570" y="90" class="timeline-label">TIGER</text>
+    <text x="570" y="105" class="timeline-label" style="font-size:9px">Generative</text>
+    <text x="570" y="150" class="timeline-year">2023</text>
+    <!-- GenRec -->
+    <circle cx="680" cy="120" r="8" class="timeline-dot" style="fill:#fbbf24"/>
+    <text x="680" y="90" class="timeline-label">GenRec</text>
+    <text x="680" y="105" class="timeline-label" style="font-size:9px">Interpretable</text>
+    <text x="680" y="150" class="timeline-year">2025</text>
+    <!-- Era labels -->
+    <text x="165" y="190" style="fill:#8b949e;font-size:10px;text-anchor:middle">Sequential Era</text>
+    <text x="405" y="190" style="fill:#8b949e;font-size:10px;text-anchor:middle">Attention Era</text>
+    <text x="625" y="190" style="fill:#8b949e;font-size:10px;text-anchor:middle">Generative Era</text>
+    <!-- Era brackets -->
+    <line x1="80" y1="170" x2="250" y2="170" stroke="#8b949e" stroke-width="1"/>
+    <line x1="330" y1="170" x2="480" y2="170" stroke="#8b949e" stroke-width="1"/>
+    <line x1="540" y1="170" x2="710" y2="170" stroke="#8b949e" stroke-width="1"/>
+  </svg>
+  <div class="intuition">
+    "Each generation solved a limitation of the previous: fixed context → variable memory → parallel attention → full generation."
+  </div>
+</section>
+
+<!-- Slide 4: SASRec -->
+<section>
+  <h2>SASRec — Self-Attentive Sequential Rec</h2>
+  <p class="subtitle">Kang &amp; McAuley, 2018</p>
+  <div class="two-col">
+    <div>
+      <h3>Key Idea</h3>
+      <p>Left-to-right <strong>causal self-attention</strong> over item ID embeddings</p>
+      <div class="step">1. Embed each item: \(e_{i_k} \in \mathbb{R}^d\)</div>
+      <div class="step">2. Stack \(L\) Transformer blocks with causal mask</div>
+      <div class="step">3. Take final hidden state \(h_t\) as user representation</div>
+      <div class="step">4. Score every item via dot product</div>
+      <div class="math-box">
+        \[ h_t = \text{Transformer}(e_{i_1}, \ldots, e_{i_t}) \]
+        \[ \text{score}(i) = h_t \cdot e_i \]
+      </div>
+      <h3>Results (our data)</h3>
+      <table>
+        <tr><th>Metric</th><th>Value</th></tr>
+        <tr><td>Recall@1</td><td><strong>0.706</strong></td></tr>
+        <tr><td>NDCG@10</td><td><strong>0.838</strong></td></tr>
+      </table>
+    </div>
+    <div>
+      <svg width="260" height="280">
+        <!-- Embedding layer -->
+        <rect x="20" y="230" width="220" height="30" rx="4" fill="#21262d" stroke="#555"/>
+        <text x="130" y="250" class="label" style="font-size:11px">Item Embeddings \(e_{i_1} \ldots e_{i_t}\)</text>
+        <!-- Transformer blocks -->
+        <rect x="40" y="140" width="180" height="70" rx="6" fill="#1a1a2e" stroke="#a78bfa" stroke-width="2"/>
+        <text x="130" y="165" class="label" style="font-size:11px">L × Transformer Block</text>
+        <text x="130" y="185" class="label" style="font-size:9px;fill:#8b949e">Causal Self-Attention + FFN</text>
+        <!-- Prediction head -->
+        <rect x="60" y="50" width="140" height="30" rx="4" fill="#1a3d2a" stroke="#4ade80"/>
+        <text x="130" y="70" class="label" style="font-size:11px;fill:#4ade80">score = \(h_t \cdot e_i\)</text>
+        <!-- Arrows -->
+        <line x1="130" y1="230" x2="130" y2="212" stroke="#555" stroke-width="2" marker-end="url(#arrow1)"/>
+        <line x1="130" y1="140" x2="130" y2="82" stroke="#555" stroke-width="2" marker-end="url(#arrow1)"/>
+        <!-- Causal mask note -->
+        <text x="130" y="125" class="label" style="font-size:9px;fill:#a78bfa">▼ Causal Mask: can't see future</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 5: BERT4Rec -->
+<section>
+  <h2>BERT4Rec — Bidirectional Sequential Rec</h2>
+  <p class="subtitle">Sun et al., 2019</p>
+  <div class="two-col">
+    <div>
+      <h3>Key Idea</h3>
+      <p><strong>Masked item prediction</strong> — like BERT's MLM but for items</p>
+      <div class="step">1. Randomly mask items in the sequence</div>
+      <div class="step">2. Predict masked items from <em>both</em> left and right context</div>
+      <div class="step">3. Bidirectional attention — sees past AND future</div>
+      <div class="math-box">
+        \[ s' = [i_1, \texttt{[MASK]}, i_3, \ldots, i_t] \]
+        \[ P(i_2 | s') = \text{softmax}(h_2 \cdot E^\top) \]
+      </div>
+      <h3>Cloze Task</h3>
+      <p>At training: mask ~15% of items, predict them</p>
+      <p>At inference: append [MASK] at position \(t+1\), predict it</p>
+    </div>
+    <div>
+      <h3>SASRec vs BERT4Rec</h3>
+      <table>
+        <tr><th>Property</th><th>SASRec</th><th>BERT4Rec</th></tr>
+        <tr><td>Attention</td><td>Causal (L→R)</td><td>Bidirectional</td></tr>
+        <tr><td>Training</td><td>Next-item</td><td>Masked-item</td></tr>
+        <tr><td>Context</td><td>Past only</td><td>Past + Future</td></tr>
+        <tr><td>Autoregressive</td><td>✓ Yes</td><td>✗ No</td></tr>
+        <tr><td>Generation-ready</td><td>✓ Natural</td><td>✗ Difficult</td></tr>
+      </table>
+      <div class="intuition">
+        "BERT4Rec sees more context, but SASRec is naturally autoregressive — making it the backbone for generative approaches."
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 6: GRU4Rec -->
+<section>
+  <h2>GRU4Rec — RNN-Based Sequential Rec</h2>
+  <p class="subtitle">Hidasi et al., 2016</p>
+  <div class="two-col">
+    <div>
+      <h3>Architecture</h3>
+      <p>GRU hidden state summarizes interaction history</p>
+      <div class="math-box">
+        \[ h_t = \text{GRU}(h_{t-1}, e_{i_t}) \]
+        \[ \text{score}(i) = h_t \cdot e_i \]
+      </div>
+      <h3>Session-Based</h3>
+      <p>Each user session treated as an independent sequence. Hidden state resets between sessions.</p>
+      <h3>Results (our data)</h3>
+      <table>
+        <tr><th>Metric</th><th>Value</th></tr>
+        <tr><td>Recall@1</td><td>0.628</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Limitations</h3>
+      <div class="step" style="border-left-color:#ef4444">Vanishing gradients — struggles with long sequences</div>
+      <div class="step" style="border-left-color:#ef4444">No parallelism — must process tokens sequentially</div>
+      <div class="step" style="border-left-color:#ef4444">Fixed-size bottleneck — entire history compressed into one vector \(h_t\)</div>
+      <div class="step" style="border-left-color:#ef4444">No direct attention to early items — information decays</div>
+      <svg width="240" height="100">
+        <!-- GRU cells -->
+        <rect x="10" y="30" width="45" height="40" rx="4" fill="#21262d" stroke="#f97316"/>
+        <text x="32" y="55" class="label" style="font-size:10px">GRU</text>
+        <rect x="75" y="30" width="45" height="40" rx="4" fill="#21262d" stroke="#f97316"/>
+        <text x="97" y="55" class="label" style="font-size:10px">GRU</text>
+        <rect x="140" y="30" width="45" height="40" rx="4" fill="#21262d" stroke="#f97316"/>
+        <text x="162" y="55" class="label" style="font-size:10px">GRU</text>
+        <rect x="205" y="30" width="45" height="40" rx="4" fill="#1a3d2a" stroke="#4ade80"/>
+        <text x="227" y="55" class="label" style="font-size:10px;fill:#4ade80">\(h_t\)</text>
+        <!-- Arrows between -->
+        <line x1="55" y1="50" x2="75" y2="50" stroke="#f97316" stroke-width="2" marker-end="url(#arrow1)"/>
+        <line x1="120" y1="50" x2="140" y2="50" stroke="#f97316" stroke-width="2" marker-end="url(#arrow1)"/>
+        <line x1="185" y1="50" x2="205" y2="50" stroke="#f97316" stroke-width="2" marker-end="url(#arrow1)"/>
+        <!-- Input labels -->
+        <text x="32" y="85" class="label" style="font-size:9px;fill:#8b949e">\(i_1\)</text>
+        <text x="97" y="85" class="label" style="font-size:9px;fill:#8b949e">\(i_2\)</text>
+        <text x="162" y="85" class="label" style="font-size:9px;fill:#8b949e">\(i_t\)</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 7: The Prediction Problem -->
+<section>
+  <h2>The Prediction Problem — Softmax Over All Items</h2>
+  <div class="two-col">
+    <div>
+      <h3>Standard Approach</h3>
+      <p>Score <strong>every item</strong> in the catalog:</p>
+      <div class="math-box">
+        \[ P(i_{t+1} | s) = \text{softmax}(h_t \cdot E^\top) \]
+        <p style="font-size:0.85em;color:#8b949e;margin-top:8px">
+          where \(E \in \mathbb{R}^{|I| \times d}\) is the full item embedding matrix
+        </p>
+      </div>
+      <h3>Computational Cost</h3>
+      <div class="step">\(O(|I|)\) per prediction — score all items</div>
+      <div class="step">\(|I| = 45\text{K}\) items → 45K dot products per user</div>
+      <div class="step">At Amazon scale: \(|I| > 100\text{M}\) → intractable</div>
+    </div>
+    <div>
+      <h3>What This Means</h3>
+      <svg width="240" height="160">
+        <!-- User representation -->
+        <rect x="10" y="60" width="60" height="30" rx="4" fill="#2d4a7a" stroke="#58a6ff"/>
+        <text x="40" y="80" class="label" style="font-size:10px">\(h_t\)</text>
+        <!-- Arrow -->
+        <line x1="70" y1="75" x2="100" y2="75" stroke="#555" stroke-width="2" marker-end="url(#arrow1)"/>
+        <!-- Item matrix -->
+        <rect x="100" y="20" width="120" height="120" rx="4" fill="#21262d" stroke="#555"/>
+        <text x="160" y="50" class="label" style="font-size:9px;fill:#8b949e">Item 1</text>
+        <text x="160" y="70" class="label" style="font-size:9px;fill:#8b949e">Item 2</text>
+        <text x="160" y="90" class="label" style="font-size:9px;fill:#8b949e">⋮</text>
+        <text x="160" y="110" class="label" style="font-size:9px;fill:#8b949e">Item |I|</text>
+        <text x="160" y="155" class="label" style="font-size:9px;fill:#f97316">O(|I|) dot products!</text>
+      </svg>
+      <div class="intuition">
+        "Every sequential model — GRU4Rec, SASRec, BERT4Rec — faces this same bottleneck: scoring the entire catalog at inference time."
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 8: Limitations of ID-Based Methods -->
+<section>
+  <h2>Limitations of ID-Based Methods</h2>
+  <div class="two-col">
+    <div>
+      <div class="step" style="border-left-color:#ef4444"><strong>Vocabulary explosion:</strong> Each item needs a unique embedding vector — scales linearly with catalog size</div>
+      <div class="step" style="border-left-color:#ef4444"><strong>Cold-start:</strong> New items have no learned embedding — impossible to recommend until retrained</div>
+      <div class="step" style="border-left-color:#ef4444"><strong>No semantic meaning:</strong> Item ID 42 tells you nothing about the item itself</div>
+      <div class="step" style="border-left-color:#ef4444"><strong>No compositionality:</strong> Can't combine "premium" + "headphones" + "Apple" to reason about unseen items</div>
+      <div class="step" style="border-left-color:#ef4444"><strong>No generalization:</strong> Patterns learned for item A don't transfer to similar item B</div>
+    </div>
+    <div>
+      <div class="intuition">
+        "ID-based models memorize the catalog. They can't reason about items they haven't seen."
+      </div>
+      <h3>The Fundamental Issue</h3>
+      <div class="math-box">
+        <p>Item embeddings \(E \in \mathbb{R}^{|I| \times d}\)</p>
+        <ul style="font-size:0.85em">
+          <li>\(|I| = 45\text{K}\) → 45K × 128 = 5.8M params just for items</li>
+          <li>\(|I| = 100\text{M}\) → 12.8B params — larger than the model!</li>
+          <li>New item → need to retrain or grow \(E\)</li>
+          <li>IDs are arbitrary: \(e_{42}\) and \(e_{43}\) share nothing</li>
+        </ul>
+      </div>
+      <p style="font-size:0.85em;color:#f97316;margin-top:10px">⚠️ This is the motivation for <strong>generative retrieval</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 9: From Discrimination to Generation -->
+<section>
+  <h2>From Discrimination to Generation</h2>
+  <p class="subtitle">The paradigm shift — preview of Chapter 2</p>
+  <div class="two-col">
+    <div>
+      <h3>Discriminative (Classical)</h3>
+      <div class="math-box">
+        <p><strong>Score all items, pick top-K</strong></p>
+        \[ \hat{i} = \arg\max_{i \in I} \; h_t \cdot e_i \]
+        <p style="font-size:0.8em;color:#8b949e">Like a multiple-choice exam</p>
+      </div>
+      <ul style="font-size:0.85em">
+        <li>✓ Well-understood</li>
+        <li>✓ High accuracy (SASRec R@1=0.706)</li>
+        <li>✗ O(|I|) inference</li>
+        <li>✗ Cold-start problem</li>
+        <li>✗ Opaque item IDs</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Generative (New Paradigm)</h3>
+      <div class="math-box">
+        <p><strong>Generate the item token-by-token</strong></p>
+        \[ P(\text{item}) = \prod_{k=1}^{K} P(c_k | c_{<k}, \text{context}) \]
+        <p style="font-size:0.8em;color:#8b949e">Like writing your own answer</p>
+      </div>
+      <ul style="font-size:0.85em">
+        <li>✓ O(K·V) inference (K levels, V codebook)</li>
+        <li>✓ Tokens carry semantic meaning</li>
+        <li>✓ New items get tokens from attributes</li>
+        <li>✓ Constrained generation is free</li>
+        <li>△ Harder optimization</li>
+      </ul>
+    </div>
+  </div>
+  <div class="intuition">
+    "Instead of asking 'which of these 45K items?', we ask 'what kind of item?' and generate it piece by piece."
+  </div>
+</section>
+
+<!-- Slide 10: Summary Table -->
+<section>
+  <h2>Summary — Sequential Recommendation Methods</h2>
+  <table>
+    <tr>
+      <th>Method</th>
+      <th>Architecture</th>
+      <th>Attention</th>
+      <th>Recall@1</th>
+      <th>Key Strength</th>
+      <th>Key Weakness</th>
+    </tr>
+    <tr>
+      <td>GRU4Rec</td>
+      <td>GRU (RNN)</td>
+      <td>None</td>
+      <td>0.628</td>
+      <td>Simple, session-based</td>
+      <td>No parallelism, vanishing grads</td>
+    </tr>
+    <tr>
+      <td>SASRec</td>
+      <td>Transformer</td>
+      <td>Causal (L→R)</td>
+      <td><strong>0.706</strong></td>
+      <td>Parallel, autoregressive</td>
+      <td>O(|I|) prediction, cold-start</td>
+    </tr>
+    <tr>
+      <td>BERT4Rec</td>
+      <td>Transformer</td>
+      <td>Bidirectional</td>
+      <td>0.691</td>
+      <td>Rich context</td>
+      <td>Not autoregressive</td>
+    </tr>
+    <tr>
+      <td>TIGER</td>
+      <td>Enc-Dec Transformer</td>
+      <td>Cross-attention</td>
+      <td>0.388*</td>
+      <td>Generative, scalable</td>
+      <td>Token collisions</td>
+    </tr>
+    <tr>
+      <td>GenRec</td>
+      <td>Enc-Dec Transformer</td>
+      <td>Cross-attention</td>
+      <td>0.503*</td>
+      <td>Interpretable, cold-start</td>
+      <td>Still trailing SASRec</td>
+    </tr>
+  </table>
+  <p style="font-size:0.7em;color:#8b949e">* Generative models evaluated full-catalog; discriminative models use uni100 protocol</p>
+  <div class="intuition">
+    "SASRec remains the accuracy king for sequential rec. The generative paradigm trades some accuracy for interpretability, scalability, and cold-start handling."
+  </div>
+</section>
+
+<!-- Slide 11: Quiz Part 1 -->
+<section>
+  <h2>Quiz — Sequential Recommendation Foundations</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> In SASRec, why is the attention mask <em>causal</em> (left-to-right) rather than bidirectional?
+  </div>
+  <div class="fragment quiz-a">
+    <strong>A1:</strong> Because at inference time we only have past interactions — we can't peek at the future. Causal masking ensures the model trains in the same setting it will be evaluated: predicting the next item from history only. This also makes it naturally autoregressive, which is critical for generative extensions.
+  </div>
+  <div class="quiz-q">
+    <strong>Q2:</strong> GRU4Rec achieves Recall@1 = 0.628 while SASRec achieves 0.706. What architectural difference explains this gap?
+  </div>
+  <div class="fragment quiz-a">
+    <strong>A2:</strong> SASRec uses self-attention, which allows <em>direct</em> connections between any two positions in the sequence (O(1) path length). GRU must propagate information step-by-step through hidden states, causing information from early items to decay. For sequences of length 20, GRU has path length 20 vs SASRec's path length 1.
+  </div>
+</section>
+
+<!-- Slide 12: Quiz Part 2 -->
+<section>
+  <h2>Quiz — Sequential Recommendation Foundations (cont.)</h2>
+  <div class="quiz-q">
+    <strong>Q3:</strong> The softmax prediction computes \(P(i_{t+1}|s) = \text{softmax}(h_t \cdot E^\top)\). If the catalog has 100M items and embeddings are 128-d, what's the computational cost per prediction and the memory for \(E\)?
+  </div>
+  <div class="fragment quiz-a">
+    <strong>A3:</strong> Compute: 100M dot products × 128 multiply-adds = 12.8 billion FLOPs per user prediction. Memory: \(100\text{M} \times 128 \times 4\text{ bytes} = 51.2\text{ GB}\) just for the item embedding matrix. This is why approximate methods (ANN, generative) are essential at scale.
+  </div>
+  <div class="quiz-q">
+    <strong>Q4:</strong> A new product launches tomorrow. Under an ID-based model (SASRec) vs a generative model (GenRec), what happens?
+  </div>
+  <div class="fragment quiz-a">
+    <strong>A4:</strong> <strong>SASRec:</strong> The new item has no embedding in \(E\). It cannot be scored or recommended until the model is retrained — complete cold-start failure.<br>
+    <strong>GenRec:</strong> The new item gets token assignments from its attributes (category, brand, price, intent). The model can immediately generate these tokens for relevant users. No retraining needed — the item is "born" with a valid representation.
+  </div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>

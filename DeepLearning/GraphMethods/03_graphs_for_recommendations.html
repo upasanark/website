@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 3: Graph Methods for Recommendations</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .msg-arrow { stroke: #f97316; stroke-width: 2; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+  <h1>Chapter 3</h1>
+  <h2>Graph Methods for Recommendations</h2>
+  <p class="subtitle">LightGCN, NGCF, XGCN, loss functions (BPR, InfoNCE), negative sampling, edge weighting, and training at scale</p>
+</section>
+
+<!-- Slide 1: From MF to Graph -->
+<section>
+  <h2>From Matrix Factorization to Graph — A Unified View</h2>
+  <div class="two-col">
+    <div>
+      <h3>Matrix Factorization</h3>
+      <div class="math-box">
+        \[ \hat{R} = U \cdot V^T \]
+        <p>Predict ratings from user/item latent factors</p>
+        <p>\(u_i \in \mathbb{R}^d\), \(v_j \in \mathbb{R}^d\)</p>
+      </div>
+    </div>
+    <div>
+      <h3>Graph View</h3>
+      <div class="math-box">
+        \[ u_i = \sum_{j \in \mathcal{N}(i)} \frac{1}{\sqrt{d_i} \cdot \sqrt{d_j}} \cdot v_j \]
+        <p>This IS one GCN layer on a bipartite graph!</p>
+      </div>
+    </div>
+  </div>
+  <svg width="500" height="140">
+    <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/></marker></defs>
+    <!-- MF side -->
+    <text x="80" y="15" style="fill:#8b949e;font-size:12px;text-anchor:middle">MF View</text>
+    <rect x="20" y="25" width="40" height="60" rx="4" style="fill:#58a6ff;opacity:0.3;stroke:#58a6ff"/>
+    <text x="40" y="60" style="fill:#fff;font-size:11px;text-anchor:middle">U</text>
+    <text x="80" y="60" style="fill:#fff;font-size:16px;text-anchor:middle">×</text>
+    <rect x="100" y="30" width="60" height="40" rx="4" style="fill:#4ade80;opacity:0.3;stroke:#4ade80"/>
+    <text x="130" y="55" style="fill:#fff;font-size:11px;text-anchor:middle">V⁻</text>
+    <!-- Arrow -->
+    <line x1="200" y1="55" x2="260" y2="55" class="msg-arrow"/>
+    <text x="230" y="45" style="fill:#f97316;font-size:10px;text-anchor:middle">equivalent</text>
+    <!-- Graph side -->
+    <text x="380" y="15" style="fill:#8b949e;font-size:12px;text-anchor:middle">Graph View (1-hop GCN)</text>
+    <!-- Users -->
+    <circle cx="290" cy="45" r="10" style="fill:#58a6ff" class="node"/>
+    <circle cx="290" cy="85" r="10" style="fill:#58a6ff" class="node"/>
+    <text x="275" y="48" style="fill:#8b949e;font-size:9px;text-anchor:end">u₁</text>
+    <text x="275" y="88" style="fill:#8b949e;font-size:9px;text-anchor:end">u₂</text>
+    <!-- Items -->
+    <circle cx="420" cy="35" r="10" style="fill:#4ade80" class="node"/>
+    <circle cx="420" cy="65" r="10" style="fill:#4ade80" class="node"/>
+    <circle cx="420" cy="95" r="10" style="fill:#4ade80" class="node"/>
+    <text x="438" y="38" style="fill:#8b949e;font-size:9px">v₁</text>
+    <text x="438" y="68" style="fill:#8b949e;font-size:9px">v₂</text>
+    <text x="438" y="98" style="fill:#8b949e;font-size:9px">v₃</text>
+    <!-- Edges -->
+    <line x1="300" y1="45" x2="410" y2="35" class="edge"/>
+    <line x1="300" y1="45" x2="410" y2="65" class="edge"/>
+    <line x1="300" y1="85" x2="410" y2="65" class="edge"/>
+    <line x1="300" y1="85" x2="410" y2="95" class="edge"/>
+  </svg>
+  <div class="intuition">MF was graph learning before we knew it — it computes user embeddings as normalized sums of interacted item embeddings. It just couldn't go deeper than 1 hop.</div>
+</section>
+
+<!-- Slide 2: LightGCN -->
+<section>
+  <h2>LightGCN — Less is More (He et al., 2020)</h2>
+  <h3>Key finding: for CF, nonlinearities and transforms HURT performance</h3>
+  <div class="step">
+    <strong>LightGCN removes:</strong> feature transformation \(W\), nonlinearity \(\sigma\), self-connections
+  </div>
+  <div class="math-box">
+    <p><strong>Layer propagation rule:</strong></p>
+    \[ e_i^{(l+1)} = \sum_{j \in \mathcal{N}(i)} \frac{1}{\sqrt{|\mathcal{N}(i)|} \cdot \sqrt{|\mathcal{N}(j)|}} \cdot e_j^{(l)} \]
+    <br>
+    <p><strong>Final embedding</strong> (weighted layer combination):</p>
+    \[ e_i = \sum_{l=0}^{L} \alpha_l \cdot e_i^{(l)} \quad \text{where } \alpha_l = \frac{1}{L+1} \]
+  </div>
+  <table>
+    <tr><th>Component</th><th>GCN</th><th>NGCF</th><th>LightGCN</th></tr>
+    <tr><td>Weight matrix \(W\)</td><td>✓</td><td>✓</td><td>✗</td></tr>
+    <tr><td>Nonlinearity \(\sigma\)</td><td>✓</td><td>✓</td><td>✗</td></tr>
+    <tr><td>Self-connection</td><td>✓</td><td>✓</td><td>✗</td></tr>
+    <tr><td>Layer combination</td><td>✗</td><td>✗</td><td>✓</td></tr>
+  </table>
+  <div class="intuition">For collaborative filtering, the graph structure IS the signal. Learned transformations on ID embeddings just add noise. The simpler the model, the better.</div>
+</section>
+
+<!-- Slide 3: LightGCN — Why Simplification Works -->
+<section>
+  <h2>LightGCN — Why Simplification Works</h2>
+  <h3>Theoretical Arguments</h3>
+  <div class="step">
+    <strong>1. No meaningful node features:</strong> User/item IDs have no semantic content — only learned embeddings
+  </div>
+  <div class="step">
+    <strong>2. Feature transformation is redundant:</strong> \(W \cdot e_{\text{random init}}\) = just a different random init
+  </div>
+  <div class="step">
+    <strong>3. Nonlinearities break linearity of signal:</strong> CF signal propagates linearly through the graph — σ distorts it
+  </div>
+  <div class="step">
+    <strong>4. Self-connections are absorbed:</strong> Layer combination \(\sum \alpha_l e^{(l)}\) already preserves the original embedding (at \(l=0\))
+  </div>
+  <div class="math-box">
+    <p><strong>Equivalence:</strong> With uniform \(\alpha_l = 1/(L+1)\), the final embedding equals:</p>
+    \[ e_u = \frac{1}{L+1}\left(e_u^{(0)} + \hat{A} e_u^{(0)} + \hat{A}^2 e_u^{(0)} + \cdots + \hat{A}^L e_u^{(0)}\right) \]
+    <p>= average over (L+1)-hop random walk distributions from node \(u\)</p>
+  </div>
+  <h3>Empirical Results:</h3>
+  <table>
+    <tr><th>Method</th><th>Gowalla (Recall@20)</th><th>Yelp2018</th><th>Amazon-Book</th></tr>
+    <tr><td>GCN</td><td>0.1554</td><td>0.0543</td><td>0.0326</td></tr>
+    <tr><td>NGCF</td><td>0.1570</td><td>0.0579</td><td>0.0344</td></tr>
+    <tr><td style="color:#4ade80"><strong>LightGCN</strong></td><td style="color:#4ade80"><strong>0.1830</strong></td><td style="color:#4ade80"><strong>0.0649</strong></td><td style="color:#4ade80"><strong>0.0411</strong></td></tr>
+  </table>
+  <div class="intuition">Simpler beats complex here because the task (collaborative filtering) is inherently about structure, not features. Removing noise-adding components lets the graph signal shine through.</div>
+</section>
+
+<!-- Slide 4: NGCF -->
+<section>
+  <h2>NGCF — Neural Graph Collaborative Filtering</h2>
+  <h3>Wang et al., 2019 — First multi-layer GNN for CF</h3>
+  <div class="math-box">
+    <p><strong>NGCF propagation layer:</strong></p>
+    \[ e_i^{(l+1)} = \sigma\!\left( W_1 e_i^{(l)} + \sum_{j \in \mathcal{N}(i)} \frac{1}{\sqrt{|\mathcal{N}(i)||\mathcal{N}(j)|}} \left( W_1 e_j^{(l)} + W_2 (e_j^{(l)} \odot e_i^{(l)}) \right) \right) \]
+  </div>
+  <h3>Key components:</h3>
+  <ul>
+    <li><strong>\(W_1 e_j^{(l)}\)</strong>: transformed neighbor embedding (standard GCN)</li>
+    <li><strong>\(W_2 (e_j^{(l)} \odot e_i^{(l)})\)</strong>: element-wise interaction term — captures pairwise feature affinity</li>
+    <li><strong>\(\sigma\)</strong>: LeakyReLU nonlinearity</li>
+    <li><strong>\(W_1 e_i^{(l)}\)</strong>: self-connection (preserves own features)</li>
+  </ul>
+  <h3>Why it's worse than LightGCN:</h3>
+  <div class="step">
+    Over-parameterization: \(W_1, W_2\) per layer on ID embeddings adds learnable noise. The interaction term \(e_j \odot e_i\) is powerful but unnecessary when IDs carry no semantic meaning.
+  </div>
+  <div class="intuition">NGCF's historical importance: it proved that multi-layer GNN propagation benefits collaborative filtering. LightGCN then showed you only need the propagation — not the bells and whistles.</div>
+</section>
+
+<!-- Slide 5: XGCN -->
+<section>
+  <h2>XGCN — Frozen Propagation (Separate Structure from Learning)</h2>
+  <h3>Core idea: propagate ONCE, then iteratively refine</h3>
+  <div class="step">
+    <strong>Step 1 — Propagate (frozen, no gradient):</strong>
+    \[ P = \left( D^{-1/2} A D^{-1/2} \right)^K \cdot E_{\text{init}} \]
+    Graph tells you WHO is structurally similar.
+  </div>
+  <div class="step">
+    <strong>Step 2 — Refine (learned):</strong>
+    \[ E_{\text{refined}} = \text{MLP}(P; \theta) \]
+    MLP learns WHAT to do with that structural similarity.
+  </div>
+  <div class="step">
+    <strong>Step 3 — Iterate:</strong> Re-propagate refined embeddings → refine again → converge.
+  </div>
+  <svg width="500" height="100">
+    <!-- Phase 1 -->
+    <rect x="10" y="20" width="120" height="60" rx="6" style="fill:none;stroke:#58a6ff;stroke-width:2"/>
+    <text x="70" y="45" style="fill:#58a6ff;font-size:11px;text-anchor:middle">Graph Propagation</text>
+    <text x="70" y="62" style="fill:#8b949e;font-size:9px;text-anchor:middle">(frozen, no grad)</text>
+    <!-- Arrow -->
+    <line x1="135" y1="50" x2="170" y2="50" class="msg-arrow"/>
+    <!-- Phase 2 -->
+    <rect x="175" y="20" width="120" height="60" rx="6" style="fill:none;stroke:#4ade80;stroke-width:2"/>
+    <text x="235" y="45" style="fill:#4ade80;font-size:11px;text-anchor:middle">MLP Refinement</text>
+    <text x="235" y="62" style="fill:#8b949e;font-size:9px;text-anchor:middle">(learned, backprop)</text>
+    <!-- Arrow -->
+    <line x1="300" y1="50" x2="335" y2="50" class="msg-arrow"/>
+    <!-- Phase 3 -->
+    <rect x="340" y="20" width="120" height="60" rx="6" style="fill:none;stroke:#a78bfa;stroke-width:2"/>
+    <text x="400" y="45" style="fill:#a78bfa;font-size:11px;text-anchor:middle">Re-propagate</text>
+    <text x="400" y="62" style="fill:#8b949e;font-size:9px;text-anchor:middle">(iterate until converge)</text>
+    <!-- Loop arrow -->
+    <path d="M 400 82 Q 400 95 235 95 Q 70 95 70 82" style="fill:none;stroke:#f97316;stroke-width:1.5;stroke-dasharray:4;marker-end:url(#arrowhead)"/>
+  </svg>
+  <h3>Computational benefit:</h3>
+  <p>No backpropagation through sparse graph operations → 5-10× faster training than end-to-end GNN</p>
+  <div class="intuition">Let the graph tell you WHO is similar (cheap, fixed propagation). Then learn WHAT to do with that similarity (small MLP). Separation of concerns = scalability.</div>
+</section>
+
+<!-- Slide 6: BPR Loss -->
+<section>
+  <h2>Loss Functions — BPR (Bayesian Personalized Ranking)</h2>
+  <h3>Rendle et al., 2009 — The classic pairwise ranking loss for implicit feedback</h3>
+  <div class="math-box">
+    <p><strong>BPR Loss:</strong></p>
+    \[ \mathcal{L}_{\text{BPR}} = -\sum_{(u, i, j)} \ln \sigma\!\left( \hat{y}_{ui} - \hat{y}_{uj} \right) + \lambda \|\Theta\|^2 \]
+    <p>where:</p>
+    <ul style="font-size:0.9em">
+      <li>\(i\) = positive item (user interacted)</li>
+      <li>\(j\) = negative item (sampled non-interaction)</li>
+      <li>\(\hat{y}_{ui} = e_u^T e_i\) (inner product score)</li>
+      <li>\(\sigma\) = sigmoid function</li>
+    </ul>
+  </div>
+  <h3>What it optimizes:</h3>
+  <div class="step">
+    For each user \(u\): score of positive item \(i\) should be HIGHER than score of negative item \(j\).<br>
+    \(\sigma(\hat{y}_{ui} - \hat{y}_{uj})\) = probability that user prefers \(i\) over \(j\)
+  </div>
+  <svg width="400" height="100">
+    <!-- Score axis -->
+    <line x1="50" y1="60" x2="380" y2="60" style="stroke:#555;stroke-width:1"/>
+    <text x="215" y="90" style="fill:#8b949e;font-size:10px;text-anchor:middle">score →</text>
+    <!-- Negative -->
+    <circle cx="120" cy="60" r="10" style="fill:#f87171" class="node"/>
+    <text x="120" y="45" style="fill:#f87171;font-size:10px;text-anchor:middle">neg j</text>
+    <!-- Positive -->
+    <circle cx="300" cy="60" r="10" style="fill:#4ade80" class="node"/>
+    <text x="300" y="45" style="fill:#4ade80;font-size:10px;text-anchor:middle">pos i</text>
+    <!-- Margin -->
+    <line x1="130" y1="60" x2="290" y2="60" style="stroke:#f97316;stroke-width:2;stroke-dasharray:4"/>
+    <text x="210" y="75" style="fill:#f97316;font-size:10px;text-anchor:middle">ŷ_ui − ŷ_uj > 0</text>
+  </svg>
+  <div class="intuition">BPR says: "I don't care about absolute scores — just that good items score higher than bad ones." It's a pairwise comparison, one triplet at a time.</div>
+</section>
+
+<!-- Slide 7: InfoNCE Loss -->
+<section>
+  <h2>Loss Functions — InfoNCE (Contrastive Loss)</h2>
+  <h3>From contrastive learning — listwise comparison against many negatives</h3>
+  <div class="math-box">
+    <p><strong>InfoNCE Loss:</strong></p>
+    \[ \mathcal{L}_{\text{InfoNCE}} = -\log \frac{\exp\!\left(\text{sim}(u, i^+) / \tau\right)}{\sum_{k=0}^{K} \exp\!\left(\text{sim}(u, i_k) / \tau\right)} \]
+    <p>where:</p>
+    <ul style="font-size:0.9em">
+      <li>\(i^+\) = positive item, \(i_1, \ldots, i_K\) = negative items</li>
+      <li>\(\text{sim}(u, i) = e_u^T e_i / (\|e_u\| \cdot \|e_i\|)\) (cosine similarity)</li>
+      <li>\(\tau\) = temperature hyperparameter</li>
+    </ul>
+  </div>
+  <h3>Temperature \(\tau\) controls sharpness:</h3>
+  <table>
+    <tr><th>\(\tau\)</th><th>Effect</th><th>Gradient behavior</th></tr>
+    <tr><td>Low (0.05)</td><td>Sharp: focus on hard negatives</td><td>Strong signal from near-misses</td></tr>
+    <tr><td>Medium (0.1)</td><td>Balanced</td><td>Smooth gradient across negatives</td></tr>
+    <tr><td>High (1.0)</td><td>Soft: nearly uniform</td><td>Weak signal, slow learning</td></tr>
+  </table>
+  <h3>BPR vs InfoNCE:</h3>
+  <table>
+    <tr><th>Aspect</th><th>BPR</th><th>InfoNCE</th></tr>
+    <tr><td>Comparison</td><td>Pairwise (pos vs 1 neg)</td><td>Listwise (pos vs K negatives)</td></tr>
+    <tr><td>Negatives per step</td><td>1</td><td>K (typically 256-1024)</td></tr>
+    <tr><td>Signal strength</td><td>Weaker per step</td><td>Stronger (more contrastive info)</td></tr>
+    <tr><td>Typical use</td><td>Classic CF</td><td>Self-supervised / contrastive CF</td></tr>
+  </table>
+  <div class="intuition">InfoNCE = softmax classification: "which one among K+1 items is the positive?" More negatives = more information per gradient step = faster convergence.</div>
+</section>
+
+<!-- Slide 8: Negative Sampling Strategies -->
+<section>
+  <h2>Negative Sampling Strategies</h2>
+  <div class="two-col">
+    <div>
+      <div class="step">
+        <strong>1. Random (Uniform):</strong><br>
+        Sample uniformly from all items<br>
+        <span style="color:#4ade80">+ Simple, unbiased</span><br>
+        <span style="color:#f87171">− Most are "easy" (user never heard of them)</span>
+      </div>
+      <div class="step">
+        <strong>2. Popularity-biased:</strong><br>
+        \(P(j) \propto d_j^{0.75}\) (smoothed degree)<br>
+        <span style="color:#4ade80">+ Harder negatives (popular items user skipped)</span><br>
+        <span style="color:#f87171">− Biases model toward popular items</span>
+      </div>
+    </div>
+    <div>
+      <div class="step">
+        <strong>3. Hard negatives:</strong><br>
+        Items close in embedding space but not interacted<br>
+        <span style="color:#4ade80">+ Strongest learning signal</span><br>
+        <span style="color:#f87171">− Risk of false negatives (user might like it!)</span>
+      </div>
+      <div class="step">
+        <strong>4. In-batch negatives:</strong><br>
+        Other users' positives as your negatives<br>
+        <span style="color:#4ade80">+ No extra sampling, natural difficulty</span><br>
+        <span style="color:#f87171">− Batch size dependent, popularity bias</span>
+      </div>
+    </div>
+  </div>
+  <div class="math-box" style="font-size:0.85em">
+    <p><strong>Expected gradient magnitude by strategy:</strong></p>
+    <p>Random: \(\mathbb{E}[\|\nabla\|] \approx 0\) (most negatives trivially separated)</p>
+    <p>Hard: \(\mathbb{E}[\|\nabla\|] \gg 0\) (negatives near decision boundary)</p>
+  </div>
+  <div class="intuition">Easy negatives teach nothing (gradient ≈ 0). Hard negatives risk teaching wrong (false negatives). The sweet spot is moderately hard: popular items the user chose NOT to buy.</div>
+</section>
+
+<!-- Slide 9: Edge Weighting -->
+<section>
+  <h2>Edge Weighting for Interaction Graphs</h2>
+  <h3>Not all interactions are equal</h3>
+  <div class="math-box">
+    <p><strong>Edge weight formula:</strong></p>
+    \[ w_{ij} = \alpha_{\text{type}} \times \text{count} \times \exp\!\left(-\frac{\Delta t}{\tau_{\text{decay}}}\right) \]
+    <p>where \(\Delta t\) = time since interaction, \(\tau_{\text{decay}}\) = decay constant</p>
+  </div>
+  <table>
+    <tr><th>Interaction Type</th><th>\(\alpha_{\text{type}}\)</th><th>Signal Strength</th></tr>
+    <tr><td>Purchase</td><td style="color:#4ade80"><strong>5.0</strong></td><td>Strongest — user committed money</td></tr>
+    <tr><td>Add to Cart</td><td style="color:#eab308">3.0</td><td>High intent but not confirmed</td></tr>
+    <tr><td>Click / Search click</td><td style="color:#f97316">2.0</td><td>Interest signal</td></tr>
+    <tr><td>View / Impression</td><td>1.0</td><td>Weakest — may be accidental</td></tr>
+  </table>
+  <h3>Impact on propagation:</h3>
+  <div class="math-box">
+    \[ e_u^{(l+1)} = \sum_{j \in \mathcal{N}(u)} \frac{w_{uj}}{\sqrt{\sum_k w_{uk}} \cdot \sqrt{\sum_k w_{kj}}} \cdot e_j^{(l)} \]
+    <p>Heavier edges propagate MORE signal — purchases influence embeddings more than views</p>
+  </div>
+  <svg width="400" height="100">
+    <!-- User -->
+    <circle cx="50" cy="50" r="14" style="fill:#58a6ff" class="node"/>
+    <text x="50" y="54" class="label" style="font-size:10px">user</text>
+    <!-- Items with different edge weights -->
+    <circle cx="200" cy="25" r="10" style="fill:#4ade80" class="node"/>
+    <circle cx="200" cy="55" r="10" style="fill:#4ade80" class="node"/>
+    <circle cx="200" cy="85" r="10" style="fill:#4ade80" class="node"/>
+    <line x1="64" y1="44" x2="190" y2="25" style="stroke:#4ade80;stroke-width:5;opacity:0.8"/>
+    <line x1="64" y1="50" x2="190" y2="55" style="stroke:#eab308;stroke-width:3;opacity:0.8"/>
+    <line x1="64" y1="56" x2="190" y2="85" style="stroke:#f87171;stroke-width:1.5;opacity:0.8"/>
+    <text x="250" y="28" style="fill:#4ade80;font-size:10px">purchase (w=5)</text>
+    <text x="250" y="58" style="fill:#eab308;font-size:10px">add-to-cart (w=3)</text>
+    <text x="250" y="88" style="fill:#f87171;font-size:10px">view (w=1)</text>
+  </svg>
+  <div class="intuition">A purchase is a 5× stronger signal than a view. Edge weighting ensures that committed actions dominate the embedding, while weak signals contribute proportionally less.</div>
+</section>
+
+<!-- Slide 10: Training at Scale -->
+<section>
+  <h2>Training at Scale — Mini-batch on Graphs</h2>
+  <h3>Challenge: full-batch GNN requires entire graph in memory</h3>
+  <p style="font-size:0.85em">28M users × 3.9M items × 423M edges → cannot fit in single GPU memory</p>
+  <div class="two-col">
+    <div>
+      <div class="step">
+        <strong>Node-wise Sampling</strong> (GraphSAGE)<br>
+        Sample K neighbors per node per hop<br>
+        Computation tree per target node<br>
+        <span style="color:#4ade80">+ Low variance</span>
+        <span style="color:#f87171">− Exponential blowup</span>
+      </div>
+      <div class="step">
+        <strong>Layer-wise Sampling</strong> (FastGCN)<br>
+        Sample a fixed set of nodes per layer<br>
+        <span style="color:#4ade80">+ Bounded computation</span>
+        <span style="color:#f87171">− Higher variance</span>
+      </div>
+    </div>
+    <div>
+      <div class="step">
+        <strong>Subgraph Sampling</strong> (ClusterGCN)<br>
+        Partition graph into clusters<br>
+        Train on one subgraph per batch<br>
+        <span style="color:#4ade80">+ No neighbor explosion</span>
+        <span style="color:#f87171">− Loses cross-cluster edges</span>
+      </div>
+      <div class="step">
+        <strong>Historical Embeddings</strong><br>
+        Cache neighbor embeddings from prior steps<br>
+        <span style="color:#4ade80">+ Full neighborhood, O(1)</span>
+        <span style="color:#f87171">− Staleness issue</span>
+      </div>
+    </div>
+  </div>
+  <svg width="450" height="100">
+    <!-- Full graph box -->
+    <rect x="10" y="10" width="120" height="80" rx="4" style="fill:none;stroke:#58a6ff"/>
+    <text x="70" y="55" style="fill:#58a6ff;font-size:10px;text-anchor:middle">Full Graph</text>
+    <text x="70" y="70" style="fill:#8b949e;font-size:9px;text-anchor:middle">(28M nodes)</text>
+    <!-- Arrow -->
+    <line x1="135" y1="50" x2="165" y2="50" class="msg-arrow"/>
+    <!-- Sampled subgraph -->
+    <rect x="170" y="10" width="120" height="80" rx="4" style="fill:none;stroke:#4ade80"/>
+    <circle cx="200" cy="40" r="6" style="fill:#4ade80"/>
+    <circle cx="230" cy="30" r="6" style="fill:#4ade80"/>
+    <circle cx="260" cy="50" r="6" style="fill:#4ade80"/>
+    <circle cx="220" cy="65" r="6" style="fill:#4ade80"/>
+    <line x1="206" y1="40" x2="224" y2="32" class="edge"/>
+    <line x1="236" y1="32" x2="254" y2="48" class="edge"/>
+    <line x1="200" y1="46" x2="218" y2="62" class="edge"/>
+    <text x="230" y="85" style="fill:#4ade80;font-size:9px;text-anchor:middle">Mini-batch subgraph</text>
+    <!-- Arrow -->
+    <line x1="295" y1="50" x2="325" y2="50" class="msg-arrow"/>
+    <!-- GPU box -->
+    <rect x="330" y="20" width="100" height="60" rx="4" style="fill:#21262d;stroke:#f97316"/>
+    <text x="380" y="48" style="fill:#f97316;font-size:11px;text-anchor:middle">GPU</text>
+    <text x="380" y="63" style="fill:#8b949e;font-size:9px;text-anchor:middle">forward + backward</text>
+  </svg>
+  <div class="intuition">For million-node recommendation graphs, mini-batch training with neighbor sampling is the only practical option. The art is controlling variance while keeping memory bounded.</div>
+</section>
+
+<!-- Slide 11: Summary Table -->
+<section>
+  <h2>Chapter 3 — Summary</h2>
+  <table>
+    <tr><th>Method</th><th>Key Idea</th><th>Pros</th><th>Cons</th></tr>
+    <tr>
+      <td><strong>LightGCN</strong></td>
+      <td>Pure propagation, no W/σ</td>
+      <td>SOTA CF, simple, fast</td>
+      <td>No side features</td>
+    </tr>
+    <tr>
+      <td><strong>NGCF</strong></td>
+      <td>Propagation + interaction term</td>
+      <td>First multi-hop GNN for CF</td>
+      <td>Over-parameterized</td>
+    </tr>
+    <tr>
+      <td><strong>XGCN</strong></td>
+      <td>Frozen prop → MLP refine</td>
+      <td>Scalable, no graph backprop</td>
+      <td>Separation may lose signal</td>
+    </tr>
+  </table>
+  <table>
+    <tr><th>Component</th><th>Options</th><th>Recommendation</th></tr>
+    <tr>
+      <td><strong>Loss</strong></td>
+      <td>BPR (pairwise) vs InfoNCE (listwise)</td>
+      <td>InfoNCE with τ=0.1 and 256+ negatives</td>
+    </tr>
+    <tr>
+      <td><strong>Neg. Sampling</strong></td>
+      <td>Random / Popularity / Hard / In-batch</td>
+      <td>Popularity-biased or in-batch</td>
+    </tr>
+    <tr>
+      <td><strong>Edge Weights</strong></td>
+      <td>Uniform / Type-based / Learned</td>
+      <td>Type-based with recency decay</td>
+    </tr>
+    <tr>
+      <td><strong>Mini-batch</strong></td>
+      <td>Node-wise / Layer-wise / Subgraph</td>
+      <td>Node-wise (GraphSAGE-style)</td>
+    </tr>
+  </table>
+  <div class="intuition">The recipe: LightGCN propagation + InfoNCE loss + popularity-biased negatives + type-weighted edges + node-wise sampling. Simple components, strong results.</div>
+</section>
+
+<!-- Quiz Slide 1 -->
+<section>
+  <h2>Quiz — Chapter 3</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> Why does LightGCN remove feature transformation matrices \(W\) compared to standard GCN?
+  </div>
+  <div class="fragment quiz-a">A: Because user/item IDs have no meaningful features — only learned embeddings. Applying \(W\) to randomly-initialized embeddings is equivalent to a different random initialization. The graph structure alone carries the collaborative signal, so transformation adds noise without benefit.</div>
+
+  <div class="quiz-q">
+    <strong>Q2:</strong> In BPR loss, what does \(\sigma(\hat{y}_{ui} - \hat{y}_{uj})\) represent geometrically?
+  </div>
+  <div class="fragment quiz-a">A: It represents the <strong>probability that user \(u\) prefers item \(i\) over item \(j\)</strong>. Geometrically, it measures how much closer \(e_u\) is to \(e_i\) than to \(e_j\) in the embedding space (via inner product difference passed through sigmoid).</div>
+
+  <div class="quiz-q">
+    <strong>Q3:</strong> XGCN freezes graph propagation. What is the computational advantage over end-to-end training?
+  </div>
+  <div class="fragment quiz-a">A: No backpropagation through sparse graph operations. Graph propagation (sparse matrix multiplication over millions of nodes) is expensive to differentiate. Freezing it means gradients only flow through the small MLP — making training 5-10× faster and memory-efficient.</div>
+</section>
+
+<!-- Quiz Slide 2 -->
+<section>
+  <h2>Quiz — Chapter 3 (continued)</h2>
+  <div class="quiz-q">
+    <strong>Q4:</strong> If \(\tau \to 0\) in InfoNCE loss, what happens to the gradient signal?
+  </div>
+  <div class="fragment quiz-a">A: As \(\tau \to 0\), the softmax becomes a hard argmax — <strong>only the hardest negative</strong> (highest similarity non-positive item) receives gradient. All other negatives contribute zero gradient. This makes training unstable and sensitive to false negatives, since one mislabeled negative dominates learning.</div>
+
+  <div class="quiz-q">
+    <strong>Q5:</strong> A user has edges to items A (purchase), B (view), C (view). With \(\alpha_{\text{purchase}}=5\), \(\alpha_{\text{view}}=1\), what fraction of the aggregated message comes from item A?
+  </div>
+  <div class="fragment quiz-a">
+    A: Unnormalized weights: A=5, B=1, C=1. Total = 7.<br>
+    Fraction from A = \(\frac{5}{7} \approx 0.714\) — item A contributes <strong>71.4%</strong> of the aggregated message.<br>
+    (Note: with symmetric normalization the exact fraction depends on item degrees too, but the dominance of A is clear.)
+  </div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>

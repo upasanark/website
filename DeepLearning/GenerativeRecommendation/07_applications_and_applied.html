@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 7: Applications, SOTA Methods &amp; Applied GenRec</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .msg-arrow { stroke: #f97316; stroke-width: 2; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- ============================== -->
+<!-- SLIDE 1: TITLE                 -->
+<!-- ============================== -->
+<section>
+  <h1>Chapter 7</h1>
+  <h2>Applications, SOTA Methods &amp; Applied GenRec</h2>
+  <p class="subtitle">Campaign targeting, generation-augmented retrieval, state-of-the-art (2025-26), and your GenRec system</p>
+</section>
+
+<!-- ============================== -->
+<!-- PART A — APPLICATIONS          -->
+<!-- ============================== -->
+
+<!-- SLIDE 2: From Recommendation to Campaign Generation -->
+<section>
+  <h2>From Recommendation to Campaign Generation</h2>
+  <div class="two-col">
+    <div>
+      <h3>Standard Rec</h3>
+      <p>"Which <strong>items</strong> should this user see?"</p>
+      <p>\(f(\text{user}) \to \text{ranked items}\)</p>
+    </div>
+    <div>
+      <h3>Campaign Targeting</h3>
+      <p>"Which <strong>users</strong> should see this campaign?"</p>
+      <p>\(g(\text{campaign}) \to \text{ranked users}\)</p>
+    </div>
+  </div>
+  <div class="step">
+    <strong>GenRec enables a third paradigm:</strong><br>
+    Generate user interest profiles as structured tokens → match against campaign criteria.<br>
+    No need to score every (user, campaign) pair — just decode and match.
+  </div>
+  <div class="math-box">
+    <p><strong>Campaign scoring:</strong></p>
+    \[ \text{score}(u, c) = \sum_{l \in \text{levels}} \mathbb{1}\left[\hat{t}_u^{(l)} \in \mathcal{T}_c^{(l)}\right] \cdot w_l \]
+    <p>where \(\hat{t}_u^{(l)}\) = user's generated token at level \(l\), \(\mathcal{T}_c^{(l)}\) = campaign's target set</p>
+  </div>
+  <div class="intuition">Instead of "will this user click this item?", GenRec answers "what does this user want next?" — and campaigns simply filter on the answer.</div>
+</section>
+
+<!-- SLIDE 3: Interpretable Campaign Matching -->
+<section>
+  <h2>Interpretable Campaign Matching</h2>
+  <div class="step">
+    <strong>Campaign defines targeting criteria via token levels:</strong><br>
+    • L1 (Category): Electronics<br>
+    • L4 (Brand): Apple<br>
+    • L6 (Intent): premium / audiophile
+  </div>
+  <div class="math-box">
+    <p><strong>User's generated token sequence reveals preferences:</strong></p>
+    \[ \hat{\mathbf{t}}_u = [\underbrace{\text{Electronics}}_{L1}, \underbrace{\text{Apple}}_{L3/L4}, \underbrace{\text{high}}_{L5}, \underbrace{\text{premium}}_{L6}, \underbrace{\text{ANC, over-ear}}_{L7}] \]
+    <p><strong>Matching = token overlap:</strong></p>
+    \[ \text{match}(u, c) = \frac{|\hat{\mathbf{t}}_u \cap \mathcal{T}_c|}{|\mathcal{T}_c|} \]
+  </div>
+  <h3>Example:</h3>
+  <table>
+    <tr><th>Campaign</th><th>Target Tokens</th><th>User Generates</th><th>Match?</th></tr>
+    <tr><td>"Premium Apple Audio"</td><td>{Electronics, Apple, premium}</td><td>{Electronics, Apple, premium, ANC}</td><td style="color:#4ade80">✓ 3/3</td></tr>
+    <tr><td>"Budget Samsung Mobile"</td><td>{Electronics, Samsung, budget}</td><td>{Electronics, Apple, premium, ANC}</td><td style="color:#f87171">✗ 1/3</td></tr>
+  </table>
+  <div class="intuition">Every matching decision is fully interpretable — you can explain exactly WHY a user was targeted: "they're predicted to want premium Apple audio products next."</div>
+</section>
+
+<!-- SLIDE 4: Cold-Start Item Recommendation -->
+<section>
+  <h2>Cold-Start Item Recommendation</h2>
+  <div class="two-col">
+    <div>
+      <h3>The Problem</h3>
+      <p>New item arrives with <strong>attributes</strong> but <strong>no interaction history</strong></p>
+      <ul>
+        <li>ID-based models: <span style="color:#f87171">cannot score it at all</span></li>
+        <li>Collaborative filtering: no co-occurrence data</li>
+        <li>Must wait for warm-up period</li>
+      </ul>
+    </div>
+    <div>
+      <h3>GenRec Solution</h3>
+      <p>New item gets tokens from its <strong>attributes</strong>:</p>
+      <p>L1=Electronics, L4=Sony, L5=mid, L6=casual, L7=wireless</p>
+      <p style="color:#4ade80">Instant scoring — no retraining!</p>
+    </div>
+  </div>
+  <div class="math-box">
+    <p><strong>Scoring a cold-start item \(i_{\text{new}}\) for user \(u\):</strong></p>
+    \[ P(i_{\text{new}} | u) = \prod_{l=1}^{L} P\!\left(t_{i_{\text{new}}}^{(l)} \,\big|\, \mathbf{h}_u, \, t_{i_{\text{new}}}^{(1:l-1)}\right) \]
+    <p>The model estimates how likely it is to <em>generate</em> this item's tokens given the user's history.</p>
+  </div>
+  <div class="step">
+    <strong>Key advantages:</strong> (1) Zero warm-up time, (2) No retraining needed, (3) Works from day one of item launch
+  </div>
+  <div class="intuition">If a user frequently generates "Apple, premium, headphones" tokens, a new Apple headphone gets scored highly even with zero interactions — because it aligns with the user's generative profile.</div>
+</section>
+
+<!-- SLIDE 5: Generation-Augmented Retrieval (GAR) -->
+<section>
+  <h2>Generation-Augmented Retrieval (GAR)</h2>
+  <div class="step">
+    <strong>Invert the pipeline:</strong> Instead of scoring existing candidates, generate candidate descriptions first, then resolve against catalog.
+  </div>
+  <div class="math-box">
+    <p><strong>Standard retrieval:</strong> query → ANN search over item embeddings → candidates</p>
+    <p><strong>GAR:</strong> query → LLM generates item descriptions → resolve via ANN → candidates</p>
+    \[ \text{GAR}(q) = \text{ANN}\!\left(\text{encode}\!\left(\text{LLM}(q)\right), \; \mathcal{I}\right) \]
+  </div>
+  <h3>Amazon Internal Results:</h3>
+  <table>
+    <tr><th>Metric</th><th>Standard Retrieval</th><th>GAR</th><th>Δ</th></tr>
+    <tr><td>OPS (revenue)</td><td>baseline</td><td>+$209M</td><td style="color:#4ade80">↑ significant</td></tr>
+    <tr><td>Recall@100</td><td>baseline</td><td>+12%</td><td style="color:#4ade80">↑</td></tr>
+    <tr><td>Candidate diversity</td><td>baseline</td><td>+18%</td><td style="color:#4ade80">↑</td></tr>
+  </table>
+  <div class="step">
+    <strong>Connection to GenRec:</strong> GenRec tokens are a structured version of GAR — instead of free-text generation, generate in a controlled token vocabulary with guaranteed catalog resolution.
+  </div>
+  <div class="intuition">GAR shows that generation-then-retrieval outperforms retrieval-only. GenRec's hierarchical tokens make this structured and controllable — every generated sequence maps to real items.</div>
+</section>
+
+<!-- SLIDE 6: Agentic Campaign Generation -->
+<section>
+  <h2>Agentic Campaign Generation</h2>
+  <h3>LLM Agent + GenRec Tokens = Automated Campaign Composition</h3>
+  <div class="step">
+    <strong>Agent Workflow:</strong><br>
+    1. <strong>Identify segments:</strong> Analyze token distribution → cluster users by generated preferences<br>
+    2. <strong>Define targeting criteria:</strong> Select token constraints (L1, L4, L6 combinations)<br>
+    3. <strong>Score audience:</strong> Run constrained generation → rank users by match probability<br>
+    4. <strong>Compose creative:</strong> Generate campaign messaging aligned to segment tokens
+  </div>
+  <div class="math-box">
+    <p><strong>Agent tools:</strong></p>
+    <p>• <code>token_distribution(segment)</code> → frequency of tokens per level</p>
+    <p>• <code>segment_score(users, constraints)</code> → ranked user list</p>
+    <p>• <code>generate_theme(token_cluster)</code> → campaign creative brief</p>
+  </div>
+  <table>
+    <tr><th>Manual Campaign</th><th>Agentic Campaign</th></tr>
+    <tr><td>PM defines audience heuristically</td><td>Agent discovers segments from data</td></tr>
+    <tr><td>Fixed rules (top-N brand buyers)</td><td>Dynamic token-based targeting</td></tr>
+    <tr><td>Days to set up</td><td>Minutes to generate</td></tr>
+    <tr><td>Hard to explain "why these users"</td><td>Token overlap = full interpretability</td></tr>
+  </table>
+  <div class="intuition">The LLM agent doesn't guess — it reads the token distributions generated by your GenRec model and composes campaigns that align with what users are actually predicted to want.</div>
+</section>
+
+<!-- ============================== -->
+<!-- PART B — STATE-OF-THE-ART      -->
+<!-- ============================== -->
+
+<!-- SLIDE 7: Latest SOTA Overview -->
+<section>
+  <h2>State-of-the-Art (2025–2026) — Overview</h2>
+  <table>
+    <tr><th>Method</th><th>Venue/Year</th><th>Key Innovation</th></tr>
+    <tr><td><strong>StaticCSR</strong></td><td>YouTube, 2026</td><td>Constrained sequential retrieval with static business rules</td></tr>
+    <tr><td><strong>GPR</strong></td><td>2025</td><td>Generative pretrained recommender — scale pretraining</td></tr>
+    <tr><td><strong>OneMall</strong></td><td>2025</td><td>Unified multi-domain generative rec</td></tr>
+    <tr><td><strong>GAR</strong></td><td>Amazon, 2025</td><td>Generation-augmented retrieval (+$209M OPS)</td></tr>
+    <tr><td><strong>HiGR</strong></td><td>2025</td><td>Hierarchical generative retrieval with RQ-VAE</td></tr>
+    <tr><td><strong>LETTER</strong></td><td>2025</td><td>LLM-enhanced tokenization for rec</td></tr>
+  </table>
+  <div class="step">
+    <strong>What's trending:</strong><br>
+    • Pre-training at scale (GPR: billions of interactions)<br>
+    • Constrained generation for production (StaticCSR: freshness, diversity built-in)<br>
+    • Hybrid discriminative + generative (best of both worlds)<br>
+    • Multi-modal inputs (text + images + behavior)
+  </div>
+  <div class="intuition">The field is converging: generative retrieval is proven to work, but production systems need constraints, scale, and hybrid approaches to close the accuracy gap.</div>
+</section>
+
+<!-- SLIDE 8: StaticCSR (YouTube, 2026) -->
+<section>
+  <h2>StaticCSR — YouTube Constrained Sequential Retrieval (2026)</h2>
+  <div class="step">
+    <strong>Problem:</strong> Production video recommendation needs freshness, diversity, and business rules — standard beam search ignores all of these.
+  </div>
+  <div class="math-box">
+    <p><strong>Key idea:</strong> Build static constraints INTO the generation process:</p>
+    \[ P(i | u, \mathcal{C}) = P(i | u) \cdot \prod_{c \in \mathcal{C}} \phi_c(i) \]
+    <p>where \(\phi_c(i)\) are constraint satisfaction indicators:</p>
+    <p>• Freshness: \(\phi_{\text{fresh}}(i) = \mathbb{1}[\text{age}(i) < \tau]\)</p>
+    <p>• Diversity: \(\phi_{\text{div}}(i) = \mathbb{1}[i \notin \text{recent\_categories}]\)</p>
+    <p>• Policy: \(\phi_{\text{policy}}(i) = \mathbb{1}[i \in \text{allowed\_set}]\)</p>
+  </div>
+  <h3>Architecture:</h3>
+  <ul>
+    <li>Sequential encoder (Transformer) for user history</li>
+    <li>Constrained beam search: prune beams violating constraints at each step</li>
+    <li>Static constraints compiled once → applied at inference without re-scoring</li>
+  </ul>
+  <div class="intuition">StaticCSR proves that generative retrieval can serve billions of users at YouTube scale — the trick is making constraints zero-cost by pre-compiling them into the decoding trie.</div>
+</section>
+
+<!-- SLIDE 9: Emerging Directions -->
+<section>
+  <h2>Emerging Directions (2025–2027)</h2>
+  <div class="two-col">
+    <div>
+      <h3>(a) LLM-Native Recommendation</h3>
+      <div class="step">Claude/GPT generating product recommendations directly from text descriptions. No separate rec model — the LLM IS the recommender.</div>
+      <h3>(b) Multi-Modal Generative Retrieval</h3>
+      <div class="step">Images + text + behavior jointly tokenized. Generate visual tokens alongside semantic ones. Product thumbnails as retrieval signals.</div>
+    </div>
+    <div>
+      <h3>(c) Real-Time Personalized Generation</h3>
+      <div class="step">Generate recommendations conditioned on live context: time, location, current cart, browsing session. Streaming inference with KV-cache.</div>
+      <h3>(d) Diffusion Models for Rec</h3>
+      <div class="step">DiffuRec, DreamRec: model user preference as a continuous distribution, "denoise" toward ideal next item. Handles uncertainty naturally.</div>
+    </div>
+  </div>
+  <div class="math-box">
+    <p><strong>Diffusion formulation:</strong></p>
+    \[ p_\theta(x_0 | u) = \int p(x_T) \prod_{t=1}^{T} p_\theta(x_{t-1} | x_t, u) \, dx_{1:T} \]
+    <p>Gradually "denoise" from random point in item embedding space toward user's ideal next item.</p>
+  </div>
+  <div class="intuition">The field is splitting: (a) LLMs as zero-shot recommenders for simple cases, (b) specialized generative models for complex production systems. Both directions are active.</div>
+</section>
+
+<!-- SLIDE 10: Open Problems -->
+<section>
+  <h2>Open Problems in Generative Recommendation</h2>
+  <h3>1. Accuracy Gap vs. Discriminative Models</h3>
+  <div class="step">SASRec/BERT4Rec still win on pure ranking metrics. GenRec trades accuracy for controllability, interpretability, and cold-start ability. Can we close this gap?</div>
+  <h3>2. Online Serving Latency</h3>
+  <div class="math-box">
+    <p>Beam search decoding: \(O(B \times L \times V)\) where B=beam width, L=levels, V=vocab per level</p>
+    <p>vs. embedding lookup + ANN: \(O(\log N)\)</p>
+    <p>Production requirement: &lt;50ms p99 for retrieval stage</p>
+  </div>
+  <h3>3. Evaluation Standards</h3>
+  <table>
+    <tr><th>Protocol</th><th>What it measures</th><th>Problem</th></tr>
+    <tr><td>uni100</td><td>Rank 1 positive among 99 random negatives</td><td>Inflated metrics; easy negatives</td></tr>
+    <tr><td>Full-catalog</td><td>Rank among all items</td><td>Expensive; hurts generative models more</td></tr>
+    <tr><td>Online A/B</td><td>Real engagement/revenue</td><td>Expensive to run; few academic labs can</td></tr>
+  </table>
+  <h3>4. Catastrophic Forgetting</h3>
+  <div class="step">Token vocabularies evolve (new brands, categories). Continual learning without forgetting previously learned user preferences remains unsolved.</div>
+  <div class="intuition">The field is productive but honest about limitations. These four problems define the research agenda for 2026-2028.</div>
+</section>
+
+<!-- ============================== -->
+<!-- PART C — YOUR WORK: GenRec     -->
+<!-- ============================== -->
+
+<!-- SLIDE 11: Problem Statement -->
+<section>
+  <h2>Your GenRec System — Problem Statement</h2>
+  <div class="two-col">
+    <div>
+      <h3>Domain</h3>
+      <ul>
+        <li><strong>45K items</strong> — wireless electronics (Amazon.in)</li>
+        <li><strong>842K sequences</strong> — behavioral histories</li>
+        <li><strong>90K customers</strong> — active buyers + explorers</li>
+        <li>Goal: personalized campaign targeting + next-item prediction</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Dual-Stream Architecture</h3>
+      <div class="step">
+        <strong>Purchase stream:</strong> items the user actually bought (high signal, sparse)<br>
+        <strong>Explore stream:</strong> items viewed/clicked/added-to-cart (lower signal, dense)
+      </div>
+    </div>
+  </div>
+  <div class="math-box">
+    <p><strong>Objective:</strong> Given user history \(\mathbf{s}_u = [s_1, s_2, \ldots, s_n]\) (interleaved purchase + explore),</p>
+    <p>generate the token sequence \(\hat{\mathbf{t}}_{n+1} = [t^{(1)}, t^{(2)}, \ldots, t^{(L)}]\) of the next item.</p>
+    \[ \mathcal{L} = -\sum_{l=1}^{L} \log P\!\left(t_{n+1}^{(l)} \,\big|\, \mathbf{s}_u, \, t_{n+1}^{(1:l-1)}\right) - \lambda \cdot \mathcal{L}_{\text{ID}} \]
+  </div>
+  <div class="intuition">This isn't a toy benchmark — it's a real production system with 2M catalog items, sparse purchase data, and the business requirement of "explain why this user was targeted."</div>
+</section>
+
+<!-- SLIDE 12: Hierarchical Token Schema -->
+<section>
+  <h2>Hierarchical Token Schema</h2>
+  <div class="math-box">
+    <p><strong>7-level hierarchy (L1 → L7d):</strong></p>
+  </div>
+  <table>
+    <tr><th>Level</th><th>Meaning</th><th>Vocab Size</th><th>Example</th></tr>
+    <tr><td>L1</td><td>Product Family</td><td>18</td><td>Electronics</td></tr>
+    <tr><td>L3</td><td>Ecosystem</td><td>~80</td><td>Apple, Samsung, …</td></tr>
+    <tr><td>L4</td><td>Brand</td><td>~350</td><td>Apple, Sony, JBL, …</td></tr>
+    <tr><td>L5</td><td>Price Tier</td><td>4</td><td>budget / mid / high / premium</td></tr>
+    <tr><td>L6</td><td>Intent</td><td>~50</td><td>audiophile, gaming, fitness, …</td></tr>
+    <tr><td>L7a-d</td><td>Spec (OPQ codes)</td><td>256 each</td><td>Learned product quantization</td></tr>
+  </table>
+  <div class="step">
+    <strong>Design properties:</strong><br>
+    • 90% uniqueness: token sequences uniquely identify items<br>
+    • 2M catalog coverage via OPQ codes at L7<br>
+    • Coarse→fine: L1-L6 are interpretable, L7 handles fine-grained discrimination<br>
+    • No RQ-VAE: interpretable tokens chosen over learned codes
+  </div>
+  <div class="intuition">The token schema IS the secret sauce. Interpretable levels (L1-L6) give you campaign targeting for free. OPQ levels (L7) recover the fine-grained item identity that interpretability sacrifices.</div>
+</section>
+
+<!-- SLIDE 13: GenRec v17 Architecture -->
+<section>
+  <h2>GenRec v17 Architecture</h2>
+  <div class="math-box">
+    <p><strong>Encoder:</strong> Bidirectional Transformer</p>
+    \[ \mathbf{H} = \text{BiTransformer}\!\left(\mathbf{E}_{\text{item}} + \mathbf{E}_{\text{pos}} + \mathbf{E}_{\text{level}}\right) \]
+    <p>• Per-level embeddings: separate embedding per token level (L1-L7)</p>
+    <p>• Dual positional encoding: absolute position + level-within-item position</p>
+  </div>
+  <div class="math-box">
+    <p><strong>Decoder:</strong> Causal cross-attention</p>
+    \[ P(t^{(l)} | \mathbf{H}, t^{(1:l-1)}) = \text{softmax}\!\left(W_l \cdot \text{CrossAttn}(t^{(1:l-1)}, \mathbf{H})\right) \]
+    <p>• Autoregressive: each level conditioned on all previous levels</p>
+    <p>• Multi-position training: predict at every sequence position (not just last)</p>
+  </div>
+  <div class="math-box">
+    <p><strong>Item ID Head:</strong> Weight-tied classification + InfoNCE</p>
+    \[ \mathcal{L}_{\text{ID}} = -\log \frac{\exp(\mathbf{h}_u^T \mathbf{e}_{i^+} / \tau)}{\sum_{j} \exp(\mathbf{h}_u^T \mathbf{e}_j / \tau)} \]
+    <p>• Resolves token collisions (multiple items sharing same L1-L6 tokens)</p>
+    <p>• Weight-tied: shares item embeddings with encoder input layer</p>
+  </div>
+  <div class="intuition">The architecture is encoder-decoder with a twist: the ID head acts as a "collision resolver" — when two items share the same semantic tokens, it discriminates using learned item embeddings.</div>
+</section>
+
+<!-- SLIDE 14: Results Comparison -->
+<section>
+  <h2>Results — Model Comparison</h2>
+  <table>
+    <tr><th>Model</th><th>HR@10 (uni100)</th><th>NDCG@10</th><th>Type</th></tr>
+    <tr><td><strong>SASRec</strong></td><td style="color:#4ade80"><strong>0.706</strong></td><td>0.451</td><td>Discriminative</td></tr>
+    <tr><td>BERT4Rec</td><td>0.691</td><td>0.438</td><td>Discriminative</td></tr>
+    <tr><td>GRU4Rec</td><td>0.628</td><td>0.385</td><td>Discriminative</td></tr>
+    <tr><td>TIGER (RQ-VAE)</td><td>0.388</td><td>0.215</td><td>Generative</td></tr>
+    <tr><td>GenRec v4</td><td>0.499</td><td>0.298</td><td>Generative</td></tr>
+    <tr><td>GenRec v5</td><td>0.503</td><td>0.302</td><td>Generative</td></tr>
+  </table>
+  <div class="two-col">
+    <div>
+      <h3 style="color:#4ade80">What GenRec does better:</h3>
+      <ul>
+        <li>Full interpretability of predictions</li>
+        <li>Cold-start (instant scoring)</li>
+        <li>Constrained generation (free at inference)</li>
+        <li>Campaign targeting (killer app)</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="color:#f87171">What it doesn't (yet):</h3>
+      <ul>
+        <li>Raw accuracy gap: 0.503 vs 0.706</li>
+        <li>~29% relative gap to SASRec</li>
+        <li>Beam search latency overhead</li>
+        <li>Token quality ceiling</li>
+      </ul>
+    </div>
+  </div>
+  <div class="intuition">GenRec v5 beats TIGER significantly (+30%) but doesn't match SASRec on pure ranking. The value proposition is in the capabilities that discriminative models simply cannot offer.</div>
+</section>
+
+<!-- SLIDE 15: Lessons Learned -->
+<section>
+  <h2>Lessons Learned</h2>
+  <div class="step">
+    <strong>1. Token quality > architecture complexity</strong><br>
+    Upgrading from random OPQ to curated L1-L6 + fine-tuned OPQ gave more lift than any architecture change. Garbage tokens in → garbage predictions out.
+  </div>
+  <div class="step">
+    <strong>2. Interpretable tokens sacrifice accuracy for controllability</strong><br>
+    Learned RQ-VAE codes compress better but are opaque. Interpretable tokens let you constrain, explain, and target — worth the accuracy trade-off for this use case.
+  </div>
+  <div class="step">
+    <strong>3. DPO shifts generation toward purchases</strong><br>
+    Direct Preference Optimization: treat purchases as "chosen" and explores as "rejected." Result: model generates tokens for items users actually buy, not just browse.
+  </div>
+  <div class="step">
+    <strong>4. Jointly-trained ID head is essential</strong><br>
+    Without it, token collisions kill accuracy. With it, the model resolves ambiguity (multiple items with same L1-L6) using learned item embeddings.
+  </div>
+  <div class="step">
+    <strong>5. Campaign targeting = killer app</strong><br>
+    Pure next-item accuracy is where discriminative models excel. But "which users match this campaign?" is something only GenRec can answer interpretably at scale.
+  </div>
+  <div class="intuition">The biggest lesson: don't compete with SASRec on its home turf (ranking). Compete where generative models have structural advantages — controllability, interpretability, cold-start, and novel applications like campaign targeting.</div>
+</section>
+
+<!-- SLIDE 16: What You'd Do Differently -->
+<section>
+  <h2>What You'd Do Differently</h2>
+  <div class="two-col">
+    <div>
+      <h3>Architecture</h3>
+      <div class="step">
+        <strong>Learned edge weights:</strong><br>
+        Currently tokens within an item are equally weighted. Better: learn attention weights between levels — "brand matters more than price tier for this user."
+      </div>
+      <div class="step">
+        <strong>Attention-based cluster assignment:</strong><br>
+        Replace hard OPQ quantization at L7 with soft attention over cluster centroids. Differentiable end-to-end.
+      </div>
+    </div>
+    <div>
+      <h3>Process</h3>
+      <div class="step">
+        <strong>Online A/B testing earlier:</strong><br>
+        Offline metrics (HR@10) don't predict online performance well. Should have instrumented A/B infrastructure from v2, not v15.
+      </div>
+      <div class="step">
+        <strong>Temporal decay in sequences:</strong><br>
+        A purchase 6 months ago shouldn't weigh the same as yesterday's. Exponential decay or learnable positional weights per recency bin.
+      </div>
+    </div>
+  </div>
+  <div class="math-box">
+    <p><strong>Soft cluster assignment (proposed):</strong></p>
+    \[ t_i^{(L7)} = \sum_{k=1}^{K} \alpha_k \cdot c_k, \quad \alpha_k = \frac{\exp(\mathbf{q}_i^T \mathbf{c}_k / \tau)}{\sum_{j} \exp(\mathbf{q}_i^T \mathbf{c}_j / \tau)} \]
+    <p>where \(\mathbf{c}_k\) are learnable cluster centroids and \(\alpha_k\) are soft assignments.</p>
+  </div>
+  <div class="intuition">Hindsight is 20/20 — but the core theme is: make everything differentiable (soft assignments, temporal weights) and validate online earlier.</div>
+</section>
+
+<!-- ============================== -->
+<!-- QUIZ SLIDES                    -->
+<!-- ============================== -->
+
+<!-- SLIDE 17: Quiz Part 1 -->
+<section>
+  <h2>Quiz — Chapter 7 (Part 1)</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> In GenRec campaign targeting, what makes it possible to explain WHY a user was matched to a campaign?
+  </div>
+  <div class="fragment quiz-a">A: The interpretable token schema (L1-L6). Each level has human-readable meaning (category, brand, intent), so the match is explained as token overlap: "User generates [Electronics, Apple, premium] which matches the campaign's target set."</div>
+
+  <div class="quiz-q">
+    <strong>Q2:</strong> How does GenRec handle cold-start items that have zero interaction history?
+  </div>
+  <div class="fragment quiz-a">A: The new item is assigned tokens from its attributes (L1-L7). The model scores it by computing the probability of generating those tokens given the user's history: \(P(i_{\text{new}} | u) = \prod_l P(t_i^{(l)} | \mathbf{h}_u, t_i^{(1:l-1)})\). No retraining required — works from day one.</div>
+
+  <div class="quiz-q">
+    <strong>Q3:</strong> What is Generation-Augmented Retrieval (GAR), and how did it perform at Amazon?
+  </div>
+  <div class="fragment quiz-a">A: GAR inverts the standard pipeline: instead of searching over item embeddings directly, an LLM first generates candidate descriptions, which are then resolved against the catalog via ANN. At Amazon, GAR produced +$209M incremental OPS and +12% recall improvement. GenRec's structured tokens are a controlled version of the same idea.</div>
+</section>
+
+<!-- SLIDE 18: Quiz Part 2 -->
+<section>
+  <h2>Quiz — Chapter 7 (Part 2)</h2>
+  <div class="quiz-q">
+    <strong>Q4:</strong> In your GenRec system, why does the ID head exist alongside the token decoder? What problem does it solve?
+  </div>
+  <div class="fragment quiz-a">A: Token collisions — multiple items can share the same L1-L6 tokens (e.g., several Apple premium headphones). The ID head uses InfoNCE loss with weight-tied item embeddings to discriminate between items that share semantic tokens, resolving the ambiguity that pure token generation cannot.</div>
+
+  <div class="quiz-q">
+    <strong>Q5:</strong> Your GenRec v5 achieves HR@10 = 0.503 vs SASRec's 0.706. Given this gap, what is the business justification for using GenRec?
+  </div>
+  <div class="fragment quiz-a">A: GenRec offers capabilities that discriminative models fundamentally cannot: (1) interpretable predictions for campaign targeting, (2) zero-shot cold-start scoring, (3) constrained generation at zero inference cost, and (4) automated campaign composition via token overlap. The 29% accuracy gap is the cost of these structural advantages — and for campaign targeting use cases, there IS no discriminative alternative.</div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>

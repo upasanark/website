@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 2: The Generative Retrieval Paradigm</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .msg-arrow { stroke: #f97316; stroke-width: 2; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+  <h1>Chapter 2</h1>
+  <h2>The Generative Retrieval Paradigm</h2>
+  <p class="subtitle">From scoring all candidates to generating items token-by-token — a new way to think about retrieval</p>
+</section>
+
+<!-- Slide 1: What is Generative Retrieval? -->
+<section>
+  <h2>What is Generative Retrieval?</h2>
+  <div class="two-col">
+    <div>
+      <h3>Traditional (Discriminative) Retrieval</h3>
+      <div class="step">Score ALL \(N\) candidates → pick top-K</div>
+      <ul>
+        <li>Items are <strong>atomic IDs</strong></li>
+        <li>Model: \(f(user, item) \to score\)</li>
+        <li>Complexity: \(O(N)\) per query</li>
+      </ul>
+      <p style="color:#8b949e">Analogy: <strong>multiple-choice exam</strong> — pick from given options</p>
+    </div>
+    <div>
+      <h3>Generative Retrieval</h3>
+      <div class="step">GENERATE the item token-by-token</div>
+      <ul>
+        <li>Items are <strong>token sequences</strong></li>
+        <li>Model: \(P(c_1, c_2, \ldots, c_K \mid context)\)</li>
+        <li>Complexity: \(O(K \cdot |V|)\) per item</li>
+      </ul>
+      <p style="color:#8b949e">Analogy: <strong>write-your-own-answer</strong> — construct the response</p>
+    </div>
+  </div>
+  <div class="intuition">The key paradigm shift: items are no longer opaque IDs to be scored — they are TOKEN SEQUENCES to be generated. This changes everything about how retrieval systems are designed, trained, and scaled.</div>
+</section>
+
+<!-- Slide 2: Why Generate Instead of Retrieve? -->
+<section>
+  <h2>Why Generate Instead of Retrieve?</h2>
+  <table>
+    <tr><th>Advantage</th><th>Explanation</th></tr>
+    <tr><td><strong>Scalability</strong></td><td>No need to score all \(N\) items — just decode \(K\) tokens. Sublinear in catalog size.</td></tr>
+    <tr><td><strong>Compositionality</strong></td><td>Tokens can recombine for novel items never seen in training.</td></tr>
+    <tr><td><strong>Interpretability</strong></td><td>Intermediate tokens reveal model's reasoning path (e.g., category → brand → product).</td></tr>
+    <tr><td><strong>Cold-start</strong></td><td>New items get tokens from attributes — no need for interaction history.</td></tr>
+    <tr><td><strong>Constrained generation</strong></td><td>Enforce business rules at decode time (availability, region, budget).</td></tr>
+  </table>
+  <div class="step" style="border-left-color: #f87171;">
+    <strong>Trade-off:</strong> Harder optimization (exposure bias, token-level vs item-level loss mismatch), potentially lower raw accuracy on well-indexed catalogs, beam search artifacts.
+  </div>
+  <div class="intuition">Generative retrieval shines when the catalog is massive, dynamic, or needs constrained output. Discriminative methods still win when you need maximum precision on a small, static set.</div>
+</section>
+
+<!-- Slide 3: The Encoder-Decoder Framework -->
+<section>
+  <h2>The Encoder-Decoder Framework for GenRec</h2>
+  <div class="math-box">
+    <p><strong>Encoder:</strong> Process user interaction history → context representation \(\mathbf{z}\)</p>
+    \[ \mathbf{z} = \text{Encoder}(x_1, x_2, \ldots, x_T) \]
+    <p><strong>Decoder:</strong> Autoregressively generate item token sequence</p>
+    \[ P(\text{item}) = P(c_1 \mid \mathbf{z}) \cdot P(c_2 \mid c_1, \mathbf{z}) \cdot \ldots \cdot P(c_K \mid c_1, \ldots, c_{K-1}, \mathbf{z}) \]
+  </div>
+  <h3>Architecture Variations</h3>
+  <div class="two-col">
+    <div>
+      <div class="step"><strong>Encoder-Decoder</strong><br>Separate modules for understanding history and generating output. (TIGER, DSI)</div>
+      <div class="step"><strong>Decoder-Only</strong><br>Single autoregressive model — history is part of the prompt. (GPT-style GenRec)</div>
+    </div>
+    <div>
+      <div class="step"><strong>LLM-Based</strong><br>Pretrained language models adapted for item generation. (P5, GPT4Rec)</div>
+      <div class="step"><strong>Hybrid</strong><br>Generate candidates → discriminative reranker. (Best of both worlds)</div>
+    </div>
+  </div>
+  <div class="intuition">The math is just chain rule — decompose P(item) into a product of conditional token probabilities. The architecture choice determines how context is computed and how tokens are produced.</div>
+</section>
+
+<!-- Slide 4: Autoregressive Generation — Step by Step -->
+<section>
+  <h2>Autoregressive Generation — Step by Step</h2>
+  <div class="math-box">
+    <p><strong>Given:</strong> user context \(\mathbf{z}\), vocabulary \(V\) of item tokens</p>
+    <p><strong>Generate:</strong> item code \((c_1, c_2, \ldots, c_K)\)</p>
+  </div>
+  <div class="step"><strong>Step 1:</strong> Predict first token — \(P(c_1 \mid \mathbf{z}) = \text{softmax}(W_1 \mathbf{z})\). Selects top-level category/cluster.</div>
+  <div class="step"><strong>Step 2:</strong> Predict second token — \(P(c_2 \mid c_1, \mathbf{z})\). Refines within the chosen cluster.</div>
+  <div class="step"><strong>Step 3:</strong> Continue until \(c_K\) — final token identifies the specific item.</div>
+  <div class="step"><strong>Step 4:</strong> Beam search to keep top-B candidates at each step.</div>
+  <div class="math-box">
+    <p><strong>Example (4-level hierarchy):</strong></p>
+    <p>\(c_1 = \text{"Electronics"}\) → \(c_2 = \text{"Audio"}\) → \(c_3 = \text{"Headphones"}\) → \(c_4 = \text{"Sony-WH1000XM5"}\)</p>
+  </div>
+  <div class="intuition">Think of it like a librarian navigating a tree: first pick the section, then the shelf, then the book. Each token narrows the search space exponentially.</div>
+</section>
+
+<!-- Slide 5: Key Design Dimensions -->
+<section>
+  <h2>Key Design Dimensions</h2>
+  <table>
+    <tr><th>Dimension</th><th>Options</th><th>Trade-off</th></tr>
+    <tr>
+      <td><strong>Tokenization</strong></td>
+      <td>Learned (VQ-VAE, RQ) vs Semantic (taxonomy, attributes)</td>
+      <td>Accuracy vs Interpretability</td>
+    </tr>
+    <tr>
+      <td><strong>Architecture</strong></td>
+      <td>Decoder-only vs Encoder-Decoder vs LLM-based</td>
+      <td>Simplicity vs Expressiveness</td>
+    </tr>
+    <tr>
+      <td><strong>Training</strong></td>
+      <td>Teacher forcing vs RL/DPO vs Contrastive</td>
+      <td>Stability vs Optimality</td>
+    </tr>
+    <tr>
+      <td><strong>Inference</strong></td>
+      <td>Greedy vs Beam search vs Constrained decoding</td>
+      <td>Speed vs Quality</td>
+    </tr>
+    <tr>
+      <td><strong>Evaluation</strong></td>
+      <td>uni100 (sample 100 negatives) vs Full-catalog ranking</td>
+      <td>Comparable vs Realistic</td>
+    </tr>
+  </table>
+  <div class="intuition">These five dimensions define the design space of any generative recommendation system. Each choice interacts with the others — e.g., learned tokenization pairs best with teacher-forcing training, while semantic tokenization enables constrained decoding.</div>
+  <div class="step">Every paper in this course makes specific choices along each dimension. Learning to identify these choices is key to understanding the field.</div>
+</section>
+
+<!-- Slide 6: Generative vs Discriminative — When to Choose -->
+<section>
+  <h2>Generative vs Discriminative — When to Choose</h2>
+  <div class="two-col">
+    <div>
+      <h3 style="color:#4ade80">Discriminative Wins When:</h3>
+      <ul>
+        <li>Full catalog is small (&lt;100K items)</li>
+        <li>Latency is critical (&lt;10ms)</li>
+        <li>Raw accuracy is paramount</li>
+        <li>Items are static (no cold-start)</li>
+        <li>ANN indexes are well-tuned</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="color:#58a6ff">Generative Wins When:</h3>
+      <ul>
+        <li>Catalog is massive (&gt;10M items)</li>
+        <li>Interpretability matters</li>
+        <li>Constrained generation needed</li>
+        <li>Cold-start is frequent</li>
+        <li>Novel item combinations possible</li>
+      </ul>
+    </div>
+  </div>
+  <div class="math-box">
+    <p><strong>Hybrid Approach (best of both):</strong></p>
+    <p>Stage 1: <strong>Generative model</strong> produces candidate set \(C\) (|C| ≈ 100–1000)</p>
+    <p>Stage 2: <strong>Discriminative reranker</strong> scores \(C\) for final top-K</p>
+    <p>Benefit: generative diversity + discriminative precision</p>
+  </div>
+  <div class="intuition">In practice, most production systems will likely converge on hybrids — use generation for broad, interpretable retrieval and discrimination for precise final ranking. The question isn't "which paradigm" but "where in the funnel."</div>
+</section>
+
+<!-- Slide 7: The Landscape of GenRec Methods -->
+<section>
+  <h2>The Landscape of GenRec Methods</h2>
+  <table>
+    <tr><th>Method</th><th>Tokenization</th><th>Architecture</th><th>Key Innovation</th></tr>
+    <tr><td><strong>DSI</strong> (2022)</td><td>Hierarchical numeric IDs</td><td>T5 Encoder-Decoder</td><td>First "indexer = model" approach</td></tr>
+    <tr><td><strong>TIGER</strong> (2024)</td><td>Learned (RQ-VAE)</td><td>T5-based</td><td>Semantic IDs from content embeddings</td></tr>
+    <tr><td><strong>GPT4Rec</strong> (2023)</td><td>Text (titles)</td><td>GPT-2 Decoder-only</td><td>Generate item titles directly</td></tr>
+    <tr><td><strong>P5</strong> (2022)</td><td>Text (multi-task prompts)</td><td>T5 unified</td><td>All rec tasks as text generation</td></tr>
+    <tr><td><strong>LETTER</strong> (2024)</td><td>Learned (RQ-VAE + alignment)</td><td>Encoder-Decoder</td><td>Token-level alignment loss</td></tr>
+    <tr><td><strong>RecForest</strong> (2024)</td><td>Multiple trees</td><td>Multi-decoder</td><td>Forest of ID systems</td></tr>
+  </table>
+  <div class="step">We will deep-dive into tokenization (Ch 3), architecture (Ch 4), training (Ch 5–7), and inference (Ch 8) in subsequent chapters.</div>
+  <div class="intuition">The field is young (2022–present) but evolving fast. Understanding the design space lets you read any new paper by asking: "what choices did they make along the 5 dimensions?"</div>
+</section>
+
+<!-- Slide 8: Summary -->
+<section>
+  <h2>Chapter 2 — Summary</h2>
+  <table>
+    <tr><th>Concept</th><th>Key Idea</th><th>Takeaway</th></tr>
+    <tr><td>Paradigm Shift</td><td>Items = token sequences</td><td>Enable generation instead of scoring</td></tr>
+    <tr><td>Core Math</td><td>\(P(\text{item}) = \prod_k P(c_k \mid c_{&lt;k}, \mathbf{z})\)</td><td>Chain rule decomposition</td></tr>
+    <tr><td>Why Generate?</td><td>Scale, compositionality, interpretability</td><td>Sublinear retrieval from huge catalogs</td></tr>
+    <tr><td>Architecture</td><td>Enc-Dec / Dec-only / LLM</td><td>Trade simplicity vs expressiveness</td></tr>
+    <tr><td>Design Space</td><td>5 dimensions</td><td>Tokenize → Arch → Train → Infer → Eval</td></tr>
+    <tr><td>When to Use</td><td>Large/dynamic/constrained catalogs</td><td>Hybrid with discriminative reranking</td></tr>
+  </table>
+  <div class="intuition">Next chapter: the critical question — HOW do you convert items into token sequences? We'll explore semantic, learned, and hybrid tokenization methods.</div>
+</section>
+
+<!-- Quiz Slide 1 -->
+<section>
+  <h2>Quiz — Chapter 2</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> What is the fundamental representational shift in generative retrieval compared to traditional retrieval?
+  </div>
+  <div class="fragment quiz-a">A: Items are represented as <strong>token sequences</strong> (not atomic IDs). This enables autoregressive generation — the model produces items token-by-token using the chain rule, rather than scoring a fixed set of candidates.</div>
+
+  <div class="quiz-q">
+    <strong>Q2:</strong> Write the factorized probability for generating a 4-token item code given user context \(\mathbf{z}\).
+  </div>
+  <div class="fragment quiz-a">A: \(P(\text{item} \mid \mathbf{z}) = P(c_1 \mid \mathbf{z}) \cdot P(c_2 \mid c_1, \mathbf{z}) \cdot P(c_3 \mid c_1, c_2, \mathbf{z}) \cdot P(c_4 \mid c_1, c_2, c_3, \mathbf{z})\). Each token conditions on ALL previous tokens plus the user context.</div>
+</section>
+
+<!-- Quiz Slide 2 -->
+<section>
+  <h2>Quiz — Chapter 2 (continued)</h2>
+  <div class="quiz-q">
+    <strong>Q3:</strong> Name three advantages of generative retrieval over discriminative retrieval, and one disadvantage.
+  </div>
+  <div class="fragment quiz-a">A: <strong>Advantages:</strong> (1) Scalability — no need to score all N items; (2) Cold-start handling — new items get tokens from attributes; (3) Constrained generation — business rules enforced at decode time. <strong>Disadvantage:</strong> Harder optimization — exposure bias, token-vs-item loss mismatch, and potentially lower raw accuracy on small static catalogs.</div>
+
+  <div class="quiz-q">
+    <strong>Q4:</strong> In a hybrid GenRec system, what role does the generative model play vs the discriminative model? Why combine them?
+  </div>
+  <div class="fragment quiz-a">A: The <strong>generative model</strong> produces a diverse candidate set (broad retrieval from huge catalog, ~100–1000 items). The <strong>discriminative reranker</strong> scores these candidates for final top-K (precision). Combined: you get the scalability and compositionality of generation with the accuracy of point-wise scoring — generative diversity + discriminative precision.</div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>

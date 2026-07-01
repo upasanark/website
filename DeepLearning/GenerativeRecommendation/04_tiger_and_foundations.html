@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 4: TIGER and Foundational Generative Retrieval Models</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .msg-arrow { stroke: #f97316; stroke-width: 2; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Slide 1: Title -->
+<section>
+  <h1>Chapter 4</h1>
+  <h2>TIGER &amp; Foundational GenRec Models</h2>
+  <p class="subtitle">From the first encoder-decoder generative recommender (NeurIPS 2023) through CoFiRec, LETTER, HiGR, Dual Identifiers, and GPR — the models that defined the field</p>
+</section>
+
+<!-- Slide 2: TIGER — NeurIPS 2023 -->
+<section>
+  <h2>TIGER — NeurIPS 2023</h2>
+  <h3>The First End-to-End Generative Retrieval for Recommendations</h3>
+  <div class="two-col">
+    <div>
+      <div class="step"><strong>Encoder:</strong> SASRec-style self-attention over item embeddings from user history</div>
+      <div class="step"><strong>Decoder:</strong> Autoregressive generation of RQ-VAE token sequences</div>
+      <div class="step"><strong>Training:</strong> Teacher forcing on ground-truth token sequences</div>
+      <div class="step"><strong>Inference:</strong> Beam search to generate top-K candidate items</div>
+    </div>
+    <div>
+      <div class="math-box">
+        <p><strong>Core factorization:</strong></p>
+        \[ P(\text{item} | \text{ctx}) = \prod_{k=1}^{K} P(c_k \mid c_{&lt;k},\, \text{ctx}) \]
+        <p><strong>Loss (per level):</strong></p>
+        \[ \mathcal{L} = -\sum_{k=1}^{K} \log P(c_k^* \mid c_1^*,\ldots,c_{k-1}^*,\, h_{\text{enc}}) \]
+        <p style="font-size:0.85em">where \(c_k^*\) = ground-truth token at level \(k\)</p>
+      </div>
+    </div>
+  </div>
+  <div class="intuition">TIGER proved that generating item identifiers token-by-token can match or beat traditional retrieve-and-rank. The key insight: item tokens from RQ-VAE form a natural coarse-to-fine hierarchy perfect for autoregressive generation.</div>
+</section>
+
+<!-- Slide 3: TIGER Architecture Detail -->
+<section>
+  <h2>TIGER — Architecture Detail</h2>
+  <svg width="750" height="260">
+    <defs>
+      <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/>
+      </marker>
+    </defs>
+    <!-- Item Encoder -->
+    <rect x="20" y="30" width="140" height="60" rx="8" style="fill:#1a3d2a;stroke:#4ade80;stroke-width:2"/>
+    <text x="90" y="55" style="fill:#4ade80;font-size:12px;text-anchor:middle;font-weight:bold">Item Encoder</text>
+    <text x="90" y="75" style="fill:#ccc;font-size:10px;text-anchor:middle">RQ-VAE → token IDs</text>
+    <!-- History Encoder -->
+    <rect x="200" y="30" width="160" height="60" rx="8" style="fill:#1c3a5e;stroke:#58a6ff;stroke-width:2"/>
+    <text x="280" y="55" style="fill:#58a6ff;font-size:12px;text-anchor:middle;font-weight:bold">History Encoder</text>
+    <text x="280" y="75" style="fill:#ccc;font-size:10px;text-anchor:middle">Bidirectional Self-Attention</text>
+    <!-- Causal Decoder -->
+    <rect x="420" y="30" width="160" height="60" rx="8" style="fill:#2d1f3d;stroke:#a78bfa;stroke-width:2"/>
+    <text x="500" y="55" style="fill:#a78bfa;font-size:12px;text-anchor:middle;font-weight:bold">Causal Decoder</text>
+    <text x="500" y="75" style="fill:#ccc;font-size:10px;text-anchor:middle">Cross-Attn + Autoregressive</text>
+    <!-- Output tokens -->
+    <rect x="630" y="35" width="100" height="50" rx="6" style="fill:#21262d;stroke:#f97316;stroke-width:2"/>
+    <text x="680" y="55" style="fill:#f97316;font-size:11px;text-anchor:middle;font-weight:bold">Token Seq</text>
+    <text x="680" y="70" style="fill:#ccc;font-size:10px;text-anchor:middle">[c₁, c₂, ..., cₖ]</text>
+    <!-- Arrows -->
+    <line x1="160" y1="60" x2="198" y2="60" class="msg-arrow"/>
+    <line x1="360" y1="60" x2="418" y2="60" class="msg-arrow"/>
+    <line x1="580" y1="60" x2="628" y2="60" class="msg-arrow"/>
+    <!-- Cross attention arrow -->
+    <path d="M 280 90 L 280 140 L 500 140 L 500 92" style="fill:none;stroke:#a78bfa;stroke-width:1.5;stroke-dasharray:4;marker-end:url(#arrowhead)"/>
+    <text x="390" y="155" style="fill:#a78bfa;font-size:10px;text-anchor:middle">cross-attention</text>
+    <!-- Bottom: Input items -->
+    <text x="90" y="120" style="fill:#8b949e;font-size:10px;text-anchor:middle">items → embeddings</text>
+    <text x="280" y="120" style="fill:#8b949e;font-size:10px;text-anchor:middle">[i₁, i₂, ..., iₜ] history</text>
+    <!-- Token generation detail -->
+    <rect x="420" y="180" width="310" height="65" rx="6" style="fill:#1a1a2e;stroke:#333;stroke-width:1"/>
+    <text x="575" y="200" style="fill:#fff;font-size:11px;text-anchor:middle">Autoregressive left-to-right:</text>
+    <text x="575" y="220" style="fill:#4ade80;font-size:11px;text-anchor:middle">P(c₁|ctx) → P(c₂|c₁,ctx) → ... → P(cₖ|c₁..cₖ₋₁,ctx)</text>
+    <text x="575" y="238" style="fill:#8b949e;font-size:10px;text-anchor:middle">Teacher forcing at train; beam search at inference</text>
+  </svg>
+  <div class="math-box" style="font-size:0.9em">
+    <p><strong>History encoding:</strong> \(\; h_{\text{enc}} = \text{SelfAttn}(e_{i_1}, e_{i_2}, \ldots, e_{i_t})\)</p>
+    <p><strong>Decoding step k:</strong> \(\; P(c_k) = \text{softmax}(W_k \cdot \text{CrossAttn}(c_{&lt;k},\, h_{\text{enc}}))\)</p>
+  </div>
+  <div class="intuition">The pipeline: each item gets a token representation (RQ-VAE), the user's history is encoded via attention, then the decoder generates the next item's tokens one level at a time — attending back to the full history at each step.</div>
+</section>
+
+<!-- Slide 4: CoFiRec -->
+<section>
+  <h2>CoFiRec — CF Signal in Tokenization (Nov 2025)</h2>
+  <h3>Key Insight: Token Quality IS the Ceiling</h3>
+  <div class="two-col">
+    <div>
+      <div class="step"><strong>Stage 1:</strong> Content-based clustering (RQ-VAE on item features)</div>
+      <div class="step"><strong>Stage 2:</strong> Refine token assignments using collaborative filtering signal (co-interaction graph)</div>
+      <div class="step"><strong>Result:</strong> Items co-purchased together get similar token prefixes</div>
+    </div>
+    <div>
+      <div class="math-box">
+        <p><strong>Two-stage objective:</strong></p>
+        \[ \mathcal{L}_{\text{CoFi}} = \underbrace{\mathcal{L}_{\text{RQ}}}_{\text{content}} + \lambda \underbrace{\mathcal{L}_{\text{CF}}}_{\text{collaborative}} \]
+        <p style="font-size:0.85em">\(\mathcal{L}_{\text{CF}}\): encourage co-interacted items to share token prefixes</p>
+      </div>
+    </div>
+  </div>
+  <table>
+    <tr><th>Tokenization</th><th>Recall@10</th><th>Δ vs Content-Only</th></tr>
+    <tr><td>RQ-VAE (content only)</td><td>baseline</td><td>—</td></tr>
+    <tr><td>CoFiRec (content + CF)</td><td>+15–20%</td><td style="color:#4ade80">significant</td></tr>
+  </table>
+  <div class="intuition">"You can build the best decoder in the world, but if two different items share the same token sequence, the model physically cannot distinguish them. CoFiRec attacks the ceiling, not the architecture."</div>
+</section>
+
+<!-- Slide 5: LETTER -->
+<section>
+  <h2>LETTER — LLM for Generative Retrieval (Li et al., 2024)</h2>
+  <h3>Bridge Between NLP and Recommendation</h3>
+  <div class="two-col">
+    <div>
+      <div class="step"><strong>Core idea:</strong> Use a pre-trained LLM instead of training from scratch</div>
+      <div class="step"><strong>Item representation:</strong> Text descriptions (title, attributes, reviews)</div>
+      <div class="step"><strong>Generation:</strong> LLM generates textual item identifiers conditioned on user history</div>
+      <div class="step"><strong>Advantage:</strong> Massive pre-trained knowledge about item semantics and language</div>
+    </div>
+    <div>
+      <div class="math-box">
+        <p><strong>Input format:</strong></p>
+        <p style="font-size:0.85em">"User bought: [item₁ desc], [item₂ desc], ... → Recommend:"</p>
+        <br>
+        <p><strong>Output:</strong> Generated item description</p>
+        <p style="font-size:0.85em">→ Resolved to catalog item via ANN search</p>
+      </div>
+      <br>
+      <table>
+        <tr><th>Aspect</th><th>TIGER</th><th>LETTER</th></tr>
+        <tr><td>Backbone</td><td>Trained from scratch</td><td>Pre-trained LLM</td></tr>
+        <tr><td>Item IDs</td><td>RQ-VAE codes</td><td>Text descriptions</td></tr>
+        <tr><td>Cold-start</td><td>Needs encoder pass</td><td>Text is always available</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="intuition">LETTER asks: "Why learn item tokens from scratch when LLMs already understand language descriptions of products?" It trades token precision for the massive world knowledge embedded in pre-trained language models.</div>
+</section>
+
+<!-- Slide 6: HiGR — Tencent -->
+<section>
+  <h2>HiGR — Hierarchical Generative Retrieval (Tencent, Feb 2026)</h2>
+  <h3>Industrial-Scale Generative Retrieval</h3>
+  <div class="two-col">
+    <div>
+      <div class="step"><strong>Challenge:</strong> Maintain retrieval quality at billion-item scale</div>
+      <div class="step"><strong>Solution:</strong> Multi-level progressive refinement</div>
+      <div class="step"><strong>Level 1:</strong> Coarse category generation (1000s of groups)</div>
+      <div class="step"><strong>Level 2:</strong> Sub-category refinement within each group</div>
+      <div class="step"><strong>Level 3:</strong> Fine-grained item selection</div>
+    </div>
+    <div>
+      <div class="math-box">
+        <p><strong>Hierarchical factorization:</strong></p>
+        \[ P(\text{item}) = \underbrace{P(\text{cluster})}_{\text{coarse}} \cdot \underbrace{P(\text{sub} | \text{cluster})}_{\text{mid}} \cdot \underbrace{P(\text{item} | \text{sub})}_{\text{fine}} \]
+        <p style="font-size:0.85em">Each level has its own decoder head with progressively smaller candidate sets</p>
+      </div>
+      <br>
+      <table>
+        <tr><th>Challenge</th><th>HiGR Solution</th></tr>
+        <tr><td>Codebook at 1B items</td><td>Hierarchical partitioning</td></tr>
+        <tr><td>Latency budget</td><td>Progressive pruning via beam</td></tr>
+        <tr><td>Token collisions</td><td>More levels = fewer collisions</td></tr>
+        <tr><td>Freshness</td><td>Async token re-assignment</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="intuition">HiGR proves generative retrieval can work at Tencent scale (billions of items). The trick: don't try to generate a single flat token sequence for billions of items — instead, progressively narrow the search space level by level.</div>
+</section>
+
+<!-- Slide 7: Dual Identifiers -->
+<section>
+  <h2>Dual Identifiers (SIGIR-AP 2025)</h2>
+  <h3>Semantic + Collaborative IDs Together</h3>
+  <div class="two-col">
+    <div>
+      <h3>The Problem:</h3>
+      <ul>
+        <li>Semantic tokens: capture content similarity but miss co-purchase signal</li>
+        <li>Collaborative tokens: capture behavioral patterns but lose interpretability</li>
+        <li>Neither alone is sufficient</li>
+      </ul>
+      <h3>The Solution:</h3>
+      <div class="step"><strong>Dual-head decoder:</strong> One head generates semantic tokens, another generates collaborative tokens</div>
+      <div class="step"><strong>Fusion:</strong> Combined scoring from both heads at inference</div>
+    </div>
+    <div>
+      <div class="math-box">
+        <p><strong>Dual generation:</strong></p>
+        \[ P_{\text{sem}}(\text{item}) = \prod_k P(s_k | s_{&lt;k}, \text{ctx}) \]
+        \[ P_{\text{cf}}(\text{item}) = \prod_k P(t_k | t_{&lt;k}, \text{ctx}) \]
+        <br>
+        <p><strong>Combined score:</strong></p>
+        \[ \text{score} = \alpha \cdot \log P_{\text{sem}} + (1-\alpha) \cdot \log P_{\text{cf}} \]
+      </div>
+      <svg width="280" height="80">
+        <rect x="10" y="10" width="100" height="30" rx="4" style="fill:#1a3d2a;stroke:#4ade80"/>
+        <text x="60" y="30" style="fill:#4ade80;font-size:10px;text-anchor:middle">Semantic Head</text>
+        <rect x="10" y="45" width="100" height="30" rx="4" style="fill:#1c3a5e;stroke:#58a6ff"/>
+        <text x="60" y="65" style="fill:#58a6ff;font-size:10px;text-anchor:middle">Collab Head</text>
+        <rect x="160" y="25" width="100" height="35" rx="4" style="fill:#2d1f3d;stroke:#a78bfa"/>
+        <text x="210" y="47" style="fill:#a78bfa;font-size:10px;text-anchor:middle">Fused Score</text>
+        <line x1="112" y1="25" x2="158" y2="40" style="stroke:#4ade80;stroke-width:1.5"/>
+        <line x1="112" y1="60" x2="158" y2="45" style="stroke:#58a6ff;stroke-width:1.5"/>
+      </svg>
+    </div>
+  </div>
+  <div class="intuition">Why choose between "what the item IS" and "what the item is bought WITH"? Dual Identifiers generate both, then fuse. Semantic tokens handle cold-start; collaborative tokens handle behavioral nuance.</div>
+</section>
+
+<!-- Slide 8: GPR — Generative Pretrained Recommender -->
+<section>
+  <h2>GPR — Generative Pretrained Recommender (Feb 2026)</h2>
+  <h3>GPT-Style Pre-training for Recommendation</h3>
+  <div class="two-col">
+    <div>
+      <div class="step"><strong>Phase 1: Pre-train</strong> — GPT-style next-token prediction on massive interaction sequences</div>
+      <div class="step"><strong>Phase 2: Fine-tune</strong> — Task-specific adaptation (next-item, campaign targeting, etc.)</div>
+      <div class="step"><strong>Key idea:</strong> Learn universal item transition patterns from all users, then specialize</div>
+    </div>
+    <div>
+      <div class="math-box">
+        <p><strong>Pre-training objective:</strong></p>
+        \[ \mathcal{L}_{\text{GPR}} = -\sum_{t=1}^{T} \sum_{k=1}^{K} \log P(c_k^{(t)} \mid \text{seq}_{&lt;t}) \]
+        <p style="font-size:0.85em">Predict next item's tokens given all preceding item-token sequences</p>
+        <br>
+        <p><strong>Fine-tuning:</strong></p>
+        <p style="font-size:0.85em">+ task-specific loss (purchase prediction, engagement, etc.)</p>
+        <p style="font-size:0.85em">+ LoRA adapters for efficient multi-task</p>
+      </div>
+    </div>
+  </div>
+  <table>
+    <tr><th>Aspect</th><th>TIGER</th><th>GPR</th></tr>
+    <tr><td>Training paradigm</td><td>End-to-end on target task</td><td>Pre-train → fine-tune</td></tr>
+    <tr><td>Data requirement</td><td>Task-specific only</td><td>All interaction logs (self-supervised)</td></tr>
+    <tr><td>Transfer</td><td>Single task</td><td>Multi-task via adapters</td></tr>
+    <tr><td>Scale benefit</td><td>Moderate</td><td>Strong (more data = better)</td></tr>
+  </table>
+  <div class="intuition">GPR applies the GPT playbook to recommendations: pre-train a foundation model on billions of interaction sequences, then fine-tune cheaply for any downstream task. The same insight that made GPT-3 powerful — scale pre-training data — works for item generation too.</div>
+</section>
+
+<!-- Slide 9: Key Findings Across Papers -->
+<section>
+  <h2>Key Findings Across Papers</h2>
+  <h3>What the Field Has Learned (2023–2026)</h3>
+  <div class="two-col">
+    <div>
+      <div class="step" style="border-left-color:#4ade80"><strong>1. Token quality &gt; Architecture</strong><br>CoFiRec (+20% recall) dwarfs architecture tweaks (+2-5%)</div>
+      <div class="step" style="border-left-color:#f87171"><strong>2. Collision rate = Bottleneck</strong><br>If 15% of items collide → max Recall@1 ≤ 85% regardless of model</div>
+      <div class="step" style="border-left-color:#a78bfa"><strong>3. Hierarchy helps diversity</strong><br>Coarse-to-fine beams naturally spread across categories</div>
+      <div class="step" style="border-left-color:#58a6ff"><strong>4. Gap narrows with better tokenization</strong><br>GenRec vs ID-based: gap shrinks as token quality improves</div>
+    </div>
+    <div>
+      <table>
+        <tr><th>Paper</th><th>Levels</th><th>Codebook</th><th>Key Contribution</th></tr>
+        <tr><td>TIGER</td><td>4</td><td>256/lvl</td><td>End-to-end framework</td></tr>
+        <tr><td>CoFiRec</td><td>4</td><td>512/lvl</td><td>CF in tokenization</td></tr>
+        <tr><td>LETTER</td><td>text</td><td>LLM vocab</td><td>Pre-trained LLM bridge</td></tr>
+        <tr><td>HiGR</td><td>5+</td><td>1024/lvl</td><td>Billion-scale</td></tr>
+        <tr><td>Dual IDs</td><td>4+4</td><td>256/lvl</td><td>Sem + CF fusion</td></tr>
+        <tr><td>GPR</td><td>4-9</td><td>varies</td><td>Pre-train paradigm</td></tr>
+      </table>
+      <div class="math-box" style="font-size:0.85em">
+        <p><strong>Theoretical ceiling:</strong></p>
+        \[ \text{Recall@1}_{\max} = \frac{|\text{unique token tuples}|}{|\text{catalog}|} \]
+      </div>
+    </div>
+  </div>
+  <div class="intuition">The field converges on one truth: invest in tokenization first. A mediocre architecture with great tokens beats a great architecture with poor tokens every time. The rest is optimization on top.</div>
+</section>
+
+<!-- Slide 10: Quiz Part 1 -->
+<section>
+  <h2>Quiz — Chapter 4</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> TIGER factorizes item probability as \(\prod_k P(c_k | c_{&lt;k}, \text{ctx})\). Why is this decomposition advantageous over predicting the full item ID in one shot?
+  </div>
+  <div class="fragment quiz-a">A: (1) Reduces output vocabulary at each step from \(N\) items to \(V\) codebook entries (e.g., 256 vs 100K). (2) Enables beam search with progressive pruning — coarse predictions narrow the search space before fine-grained discrimination. (3) Hierarchical structure means early tokens can be constrained by business rules.</div>
+
+  <div class="quiz-q">
+    <strong>Q2:</strong> CoFiRec improves recall by 15–20% over content-only tokenization. What signal is it adding, and why can't the decoder learn this signal on its own?
+  </div>
+  <div class="fragment quiz-a">A: CoFiRec adds <strong>collaborative filtering signal</strong> — co-purchase/co-interaction patterns — into the token assignment itself. The decoder can't compensate because if two frequently co-purchased items have different token prefixes (due to content-only clustering), the decoder has no path to associate them. Token assignment is a hard boundary the model cannot cross.</div>
+</section>
+
+<!-- Slide 11: Quiz Part 2 -->
+<section>
+  <h2>Quiz — Chapter 4 (continued)</h2>
+  <div class="quiz-q">
+    <strong>Q3:</strong> Dual Identifiers uses both semantic and collaborative token heads. Why not simply make semantic tokens more fine-grained (more levels) to capture collaborative signal?
+  </div>
+  <div class="fragment quiz-a">A: Semantic attributes (category, brand, price) are fundamentally <strong>content-based</strong> — they describe what an item IS, not what it's bought WITH. No amount of semantic granularity captures that "phone case buyers also buy screen protectors." Collaborative signal requires observing user behavior, which is orthogonal to item attributes. Dual heads let each modality optimize for its own signal without interference.</div>
+
+  <div class="quiz-q">
+    <strong>Q4:</strong> GPR pre-trains on all interaction sequences then fine-tunes. What's the risk of this approach compared to TIGER's end-to-end training?
+  </div>
+  <div class="fragment quiz-a">A: (1) <strong>Distribution mismatch</strong> — pre-training sees ALL interactions (browsing, clicks, purchases) but the fine-tuning task may only care about purchases. The model may have learned token transitions that optimize for engagement, not conversion. (2) <strong>Catastrophic forgetting</strong> — aggressive fine-tuning may overwrite useful pre-trained knowledge. (3) <strong>Compute cost</strong> — pre-training on billions of sequences is expensive upfront, only justified if multiple downstream tasks amortize the cost.</div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>

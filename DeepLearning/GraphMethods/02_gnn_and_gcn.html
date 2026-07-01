@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 2: Graph Neural Networks and Graph Convolution</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .msg-arrow { stroke: #f97316; stroke-width: 2; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+  <h1>Chapter 2</h1>
+  <h2>Graph Neural Networks &amp; Graph Convolution</h2>
+  <p class="subtitle">Message passing, spectral convolutions, GCN, GraphSAGE, GAT, and the over-smoothing problem</p>
+</section>
+
+<!-- Slide 1: The Core Idea -->
+<section>
+  <h2>The Core Idea — Learning on Graph Structure</h2>
+  <div class="two-col">
+    <div>
+      <h3>Problem:</h3>
+      <p>We have a graph \(G\) + node features \(X \in \mathbb{R}^{n \times d}\)</p>
+      <p>Want to learn node representations \(H \in \mathbb{R}^{n \times d'}\) that capture both features AND structure</p>
+      <h3>Solution:</h3>
+      <p>Let each node's representation depend on its <strong>neighborhood</strong></p>
+    </div>
+    <div>
+      <svg width="250" height="200">
+        <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/></marker></defs>
+        <!-- Before GNN -->
+        <text x="60" y="20" style="fill:#8b949e;font-size:12px;text-anchor:middle">Before GNN</text>
+        <circle cx="30" cy="60" r="12" style="fill:#666"/>
+        <circle cx="90" cy="45" r="12" style="fill:#777"/>
+        <circle cx="60" cy="95" r="12" style="fill:#555"/>
+        <line x1="30" y1="60" x2="90" y2="45" class="edge"/>
+        <line x1="30" y1="60" x2="60" y2="95" class="edge"/>
+        <!-- After GNN -->
+        <text x="190" y="20" style="fill:#8b949e;font-size:12px;text-anchor:middle">After GNN</text>
+        <circle cx="160" cy="60" r="12" style="fill:#58a6ff"/>
+        <circle cx="220" cy="45" r="12" style="fill:#4ade80"/>
+        <circle cx="190" cy="95" r="12" style="fill:#58a6ff"/>
+        <line x1="160" y1="60" x2="220" y2="45" class="edge"/>
+        <line x1="160" y1="60" x2="190" y2="95" class="edge"/>
+        <!-- Arrow -->
+        <line x1="105" y1="70" x2="140" y2="70" class="msg-arrow"/>
+        <text x="125" y="130" style="fill:#f97316;font-size:11px;text-anchor:middle">Similar neighbors</text>
+        <text x="125" y="145" style="fill:#f97316;font-size:11px;text-anchor:middle">→ similar colors</text>
+      </svg>
+    </div>
+  </div>
+  <div class="intuition">If your friends all like jazz, you probably like jazz too — that's GNN in one sentence.</div>
+</section>
+
+<!-- Slide 2: Message Passing Framework -->
+<section>
+  <h2>Message Passing Framework</h2>
+  <div class="math-box">
+    <p><strong>Three phases per layer:</strong></p>
+    <p>1. <strong>Message:</strong> \(\quad m_{j \to i}^{(l)} = \text{MSG}(h_i^{(l)}, h_j^{(l)}, e_{ij})\)</p>
+    <p>2. <strong>Aggregate:</strong> \(\quad M_i^{(l)} = \text{AGG}\left(\{m_{j \to i}^{(l)} : j \in \mathcal{N}(i)\}\right)\)</p>
+    <p>3. <strong>Update:</strong> \(\quad h_i^{(l+1)} = \text{UPDATE}(h_i^{(l)}, M_i^{(l)})\)</p>
+  </div>
+  <svg width="450" height="120">
+    <!-- Central node -->
+    <circle cx="225" cy="60" r="20" style="fill:#58a6ff" class="node"/>
+    <text x="225" y="65" class="label">i</text>
+    <!-- Neighbors -->
+    <circle cx="80" cy="40" r="14" style="fill:#4ade80" class="node"/>
+    <circle cx="120" cy="100" r="14" style="fill:#4ade80" class="node"/>
+    <circle cx="330" cy="30" r="14" style="fill:#4ade80" class="node"/>
+    <circle cx="370" cy="90" r="14" style="fill:#4ade80" class="node"/>
+    <!-- Arrows -->
+    <line x1="94" y1="40" x2="205" y2="55" class="msg-arrow"/>
+    <line x1="134" y1="95" x2="210" y2="70" class="msg-arrow"/>
+    <line x1="316" y1="35" x2="245" y2="55" class="msg-arrow"/>
+    <line x1="356" y1="85" x2="240" y2="70" class="msg-arrow"/>
+    <text x="80" y="30" class="label" style="font-size:11px">j₁</text>
+    <text x="120" y="90" class="label" style="font-size:11px">j₂</text>
+    <text x="330" y="20" class="label" style="font-size:11px">j₃</text>
+    <text x="370" y="80" class="label" style="font-size:11px">j₄</text>
+  </svg>
+  <div class="intuition">Each node collects information from neighbors (messages), combines them (aggregate), and updates itself. This IS the GNN.</div>
+</section>
+
+<!-- Slide 3: Aggregation Functions -->
+<section>
+  <h2>Aggregation Functions</h2>
+  <div class="math-box">
+    <p><strong>Mean:</strong> \(\quad M_i = \frac{1}{|\mathcal{N}(i)|} \sum_{j \in \mathcal{N}(i)} h_j\) — averages neighbor features</p>
+    <p><strong>Sum:</strong> \(\quad M_i = \sum_{j \in \mathcal{N}(i)} h_j\) — preserves degree information</p>
+    <p><strong>Max:</strong> \(\quad M_i = \max_{j \in \mathcal{N}(i)} h_j\) — captures most salient neighbor</p>
+  </div>
+  <table>
+    <tr><th>Aggregator</th><th>Degree-aware?</th><th>Pros</th><th>Cons</th></tr>
+    <tr><td>Mean</td><td>No (normalizes out)</td><td>Stable, smooth</td><td>Loses count info</td></tr>
+    <tr><td>Sum</td><td>Yes</td><td>Distinguishes substructures</td><td>Sensitive to degree</td></tr>
+    <tr><td>Max</td><td>No</td><td>Robust to noise</td><td>Loses most info</td></tr>
+  </table>
+  <div class="intuition">Mean: "What's the average opinion of my friends?" Sum: "What's the TOTAL signal from my neighborhood?" Max: "What's the strongest single signal?"</div>
+</section>
+
+<!-- Slide 4: Multi-Hop Propagation -->
+<section>
+  <h2>Multi-Hop Propagation — Receptive Field</h2>
+  <div class="two-col">
+    <div>
+      <svg width="250" height="220">
+        <!-- Concentric circles representing receptive field -->
+        <circle cx="125" cy="110" r="95" style="fill:none;stroke:#333;stroke-width:1;stroke-dasharray:4"/>
+        <circle cx="125" cy="110" r="60" style="fill:none;stroke:#555;stroke-width:1;stroke-dasharray:4"/>
+        <circle cx="125" cy="110" r="25" style="fill:none;stroke:#777;stroke-width:1"/>
+        <!-- Labels -->
+        <text x="125" y="200" style="fill:#8b949e;font-size:10px;text-anchor:middle">Layer 3: 3-hop</text>
+        <text x="125" y="170" style="fill:#a78bfa;font-size:10px;text-anchor:middle">Layer 2: 2-hop</text>
+        <text x="125" y="140" style="fill:#58a6ff;font-size:10px;text-anchor:middle">Layer 1: 1-hop</text>
+        <!-- Center node -->
+        <circle cx="125" cy="110" r="10" style="fill:#f97316"/>
+        <text x="125" y="114" class="label" style="font-size:10px">v</text>
+      </svg>
+    </div>
+    <div>
+      <div class="math-box">
+        <p><strong>Layer 1:</strong> node sees 1-hop neighbors</p>
+        <p><strong>Layer 2:</strong> node sees 2-hop (neighbors of neighbors)</p>
+        <p><strong>Layer K:</strong> node sees K-hop neighborhood</p>
+        <br>
+        <p>\(h_i^{(K)}\) encodes information from <strong>all nodes within K hops</strong></p>
+      </div>
+      <p style="font-size:0.85em">After 2 layers on a user-item graph:</p>
+      <p style="font-size:0.85em">User "sees" items purchased by <em>similar users</em> (2-hop collaborative signal)</p>
+    </div>
+  </div>
+  <div class="intuition">Each GNN layer expands the receptive field by 1 hop. K layers = K-hop neighborhood. This is how collaborative filtering emerges from graph structure.</div>
+</section>
+
+<!-- Slide 5: Spectral Graph Convolutions -->
+<section>
+  <h2>Spectral Graph Convolutions — The Theory</h2>
+  <h3>Goal: define convolution on graphs</h3>
+  <div class="step">On images: convolution = slide a filter over a regular grid. On graphs: no grid — nodes are irregularly connected.</div>
+  <div class="math-box">
+    <p><strong>Key tool:</strong> Graph Fourier Transform using Laplacian eigenvectors</p>
+    <p>Eigendecomposition: \(\; L = U \Lambda U^T\)</p>
+    <br>
+    <p><strong>Graph Fourier Transform:</strong> \(\hat{x} = U^T x\)</p>
+    <p><strong>Inverse:</strong> \(x = U \hat{x}\)</p>
+    <br>
+    <p><strong>Spectral convolution:</strong></p>
+    \[ g_\theta \star x = U \, g_\theta(\Lambda) \, U^T x \]
+    <p>where \(g_\theta(\Lambda)\) is a learnable filter in the spectral domain</p>
+  </div>
+  <p style="color:#f87171">Problem: computing eigenvectors is \(O(n^3)\) — not scalable!</p>
+  <div class="intuition">Convolution on images = local pattern detection. On graphs, the same idea — but "locality" is defined by graph structure, not pixel adjacency. The spectral approach gives us the theory; we need approximations for practice.</div>
+</section>
+
+<!-- Slide 6: Chebyshev Approximation -->
+<section>
+  <h2>Chebyshev Approximation — Making It Scalable</h2>
+  <div class="math-box">
+    <p>Approximate \(g_\theta(\Lambda)\) with Chebyshev polynomials up to order K:</p>
+    \[ g_\theta(\Lambda) \approx \sum_{k=0}^{K} \theta_k \, T_k(\tilde{\Lambda}) \]
+    <p>where \(\tilde{\Lambda} = \frac{2\Lambda}{\lambda_{max}} - I\) (scaled to [-1, 1])</p>
+    <br>
+    <p><strong>Chebyshev recurrence:</strong></p>
+    \[ T_0(x) = 1, \quad T_1(x) = x, \quad T_k(x) = 2x \cdot T_{k-1}(x) - T_{k-2}(x) \]
+  </div>
+  <h3>Why this works:</h3>
+  <ul>
+    <li>\(T_k(L)\) only requires <strong>K-hop neighborhoods</strong> (localized!)</li>
+    <li>No eigenvector computation needed — just multiply by \(L\) repeatedly</li>
+    <li>K parameters to learn (not n), computation is \(O(K \cdot |E|)\)</li>
+  </ul>
+  <div class="intuition">Chebyshev polynomials let us approximate any spectral filter using only local graph operations. Order K = K-hop locality. This bridges spectral theory to spatial implementation.</div>
+</section>
+
+<!-- Slide 7: GCN — The First-Order Approximation -->
+<section>
+  <h2>GCN — The Key Simplification (Kipf &amp; Welling, 2017)</h2>
+  <div class="step">Set K=1, assume λ<sub>max</sub>≈2 in Chebyshev → first-order approximation</div>
+  <div class="math-box">
+    <p><strong>Result:</strong> \(\; g_\theta \star x \approx \theta \left( I + D^{-1/2} A D^{-1/2} \right) x\)</p>
+    <br>
+    <p><strong>Renormalization trick:</strong> replace \(I + D^{-1/2}AD^{-1/2}\) with \(\tilde{D}^{-1/2}\tilde{A}\tilde{D}^{-1/2}\)</p>
+    <p>where \(\tilde{A} = A + I\) (add self-loops) and \(\tilde{D}_{ii} = \sum_j \tilde{A}_{ij}\)</p>
+    <br>
+    <p style="font-size:1.1em;color:#4ade80"><strong>The GCN Layer:</strong></p>
+    \[ H^{(l+1)} = \sigma\!\left( \tilde{D}^{-1/2} \tilde{A} \, \tilde{D}^{-1/2} \, H^{(l)} W^{(l)} \right) \]
+  </div>
+  <ul>
+    <li>\(\tilde{D}^{-1/2} \tilde{A} \, \tilde{D}^{-1/2}\): normalized aggregation (including self)</li>
+    <li>\(W^{(l)}\): learnable weight matrix (feature transformation)</li>
+    <li>\(\sigma\): nonlinearity (ReLU)</li>
+  </ul>
+  <div class="intuition">GCN took the elegant but expensive spectral theory and boiled it down to: "average your neighbors' features (including yourself), then transform." One line of code.</div>
+</section>
+
+<!-- Slide 8: GCN — What Each Part Does -->
+<section>
+  <h2>GCN Layer — Dissecting Each Component</h2>
+  <div class="math-box">
+    \[ H^{(l+1)} = \sigma\!\left( \underbrace{\tilde{D}^{-1/2} \tilde{A} \, \tilde{D}^{-1/2}}_{\text{normalized aggregation}} \underbrace{H^{(l)}}_{\text{current features}} \underbrace{W^{(l)}}_{\text{transformation}} \right) \]
+  </div>
+  <table>
+    <tr><th>Component</th><th>What it does</th><th>Without it</th></tr>
+    <tr><td>\(\tilde{A} = A + I\)</td><td>Includes self-loop (node keeps its own features)</td><td>Node forgets itself after aggregation</td></tr>
+    <tr><td>\(\tilde{D}^{-1/2} \cdot \tilde{D}^{-1/2}\)</td><td>Symmetric normalization: scale by \(1/\sqrt{d_i \cdot d_j}\)</td><td>High-degree nodes dominate</td></tr>
+    <tr><td>\(W^{(l)}\)</td><td>Learnable projection (d → d')</td><td>Can't change feature dimension</td></tr>
+    <tr><td>\(\sigma\) (ReLU)</td><td>Nonlinearity between layers</td><td>Multiple layers collapse to one</td></tr>
+  </table>
+  <div class="intuition">The normalization ensures that a node with 10,000 neighbors doesn't overwhelm a node with 5 neighbors. Every neighbor gets "voting power" proportional to 1/√(their degree × your degree).</div>
+</section>
+
+<!-- Slide 9: GCN Worked Example -->
+<section>
+  <h2>GCN — Worked Example</h2>
+  <p>4-node graph, 2-dim features, 1 GCN layer (no W, no σ for clarity):</p>
+  <div class="two-col">
+    <div>
+      <p><strong>Features:</strong></p>
+      <p>\(x_1 = [1, 0]\), \(x_2 = [0, 1]\)</p>
+      <p>\(x_3 = [1, 1]\), \(x_4 = [0, 0]\)</p>
+      <p><strong>Edges:</strong> (1,2), (1,3), (2,3), (3,4)</p>
+    </div>
+    <div>
+      <p><strong>Step 1:</strong> Add self-loops → \(\tilde{A} = A + I\)</p>
+      <p><strong>Step 2:</strong> Compute \(\tilde{D}\): degrees [3,3,4,2]</p>
+      <p><strong>Step 3:</strong> \(\hat{A} = \tilde{D}^{-1/2}\tilde{A}\tilde{D}^{-1/2}\)</p>
+    </div>
+  </div>
+  <div class="math-box" style="font-size:0.8em">
+    <p><strong>Node 1's new embedding</strong> (aggregating from neighbors 2, 3, and self):</p>
+    \[ h_1' = \frac{1}{\sqrt{3}} \left( \frac{x_1}{\sqrt{3}} + \frac{x_2}{\sqrt{3}} + \frac{x_3}{\sqrt{4}} \right) = \frac{1}{3}[1,0] + \frac{1}{3}[0,1] + \frac{1}{\sqrt{12}}[1,1] \]
+    \[ h_1' \approx [0.62, 0.62] \]
+    <p>Node 1 started at [1,0] but after aggregation moves toward its neighbors' average!</p>
+  </div>
+  <div class="intuition">After one GCN layer, nodes with similar neighborhoods get similar embeddings. This is how "guilt by association" becomes a mathematical operation.</div>
+</section>
+
+<!-- Slide 10: GraphSAGE -->
+<section>
+  <h2>GraphSAGE — Inductive Learning (Hamilton et al., 2017)</h2>
+  <h3>Problem with GCN:</h3>
+  <p>Transductive — needs full graph at training time. Can't embed unseen nodes.</p>
+  <h3>Solution: Sample + Aggregate</h3>
+  <div class="math-box">
+    \[ h_v^{(l)} = \sigma\!\left( W^{(l)} \cdot \text{CONCAT}\!\left( h_v^{(l-1)},\; \text{AGG}\!\left(\{h_u^{(l-1)} : u \in S(\mathcal{N}(v))\}\right) \right) \right) \]
+  </div>
+  <div class="step">
+    <strong>Algorithm:</strong><br>
+    1. <strong>SAMPLE</strong>: pick K random neighbors (fixed budget)<br>
+    2. <strong>AGGREGATE</strong>: mean/LSTM/pool over sampled neighbors<br>
+    3. <strong>CONCAT</strong>: combine self-embedding with aggregation<br>
+    4. <strong>TRANSFORM</strong>: linear projection + nonlinearity
+  </div>
+  <h3>Key advantage:</h3>
+  <ul>
+    <li>Can generalize to <strong>unseen nodes</strong> (new users/items)</li>
+    <li>Fixed computation budget per node (sample K neighbors)</li>
+    <li>Mini-batch training possible (no full graph in memory)</li>
+  </ul>
+  <div class="intuition">GraphSAGE learns a FUNCTION for aggregating neighborhoods — not fixed embeddings. New nodes just run the function on their neighbors.</div>
+</section>
+
+<!-- Slide 11: GAT -->
+<section>
+  <h2>GAT — Graph Attention Networks (Veličković et al., 2018)</h2>
+  <h3>Motivation: not all neighbors are equally important</h3>
+  <div class="math-box">
+    <p><strong>Attention coefficient:</strong></p>
+    \[ e_{ij} = \text{LeakyReLU}\!\left( \mathbf{a}^T [W h_i \,\|\, W h_j] \right) \]
+    <p><strong>Normalized (softmax over neighbors):</strong></p>
+    \[ \alpha_{ij} = \frac{\exp(e_{ij})}{\sum_{k \in \mathcal{N}(i)} \exp(e_{ik})} \]
+    <p><strong>Aggregation:</strong></p>
+    \[ h_i' = \sigma\!\left( \sum_{j \in \mathcal{N}(i)} \alpha_{ij} \cdot W h_j \right) \]
+  </div>
+  <p><strong>Multi-head attention:</strong> K heads, concatenate or average outputs</p>
+  <table>
+    <tr><th>Method</th><th>Neighbor weighting</th></tr>
+    <tr><td>GCN</td><td>Fixed: \(1/\sqrt{d_i \cdot d_j}\) (from degree only)</td></tr>
+    <tr><td>GAT</td><td>Learned: \(\alpha_{ij}\) (from content of both nodes)</td></tr>
+  </table>
+  <div class="intuition">If GCN treats all neighbors equally, GAT asks "which neighbors matter most for THIS node?" — and learns the answer from data.</div>
+</section>
+
+<!-- Slide 12: Over-Smoothing -->
+<section>
+  <h2>The Over-Smoothing Problem</h2>
+  <div class="math-box">
+    <p><strong>Observation:</strong> As layers increase, all node embeddings converge to the same vector.</p>
+    \[ \lim_{K \to \infty} h_i^{(K)} \to \frac{d_i}{2m} \cdot \mathbf{1} \quad \text{(proportional to degree)} \]
+  </div>
+  <h3>Why it happens:</h3>
+  <ul>
+    <li>Repeated mean aggregation = <strong>low-pass filter</strong></li>
+    <li>Each layer smooths differences between connected nodes</li>
+    <li>After many layers: all high-frequency (discriminative) signal is killed</li>
+    <li>Analogy: repeatedly averaging pixel colors → entire image becomes grey</li>
+  </ul>
+  <h3>Practical consequence:</h3>
+  <table>
+    <tr><th>Layers</th><th>Receptive field</th><th>Quality</th></tr>
+    <tr><td>1-2</td><td>Local</td><td style="color:#4ade80">Good</td></tr>
+    <tr><td>3</td><td>Broader</td><td style="color:#eab308">Marginal gain</td></tr>
+    <tr><td>4+</td><td>Near-global</td><td style="color:#f87171">Degrades (over-smoothing)</td></tr>
+  </table>
+  <div class="intuition">Over-smoothing = every node looks the same after too many layers. This is why GNNs are shallow (2-3 layers) — deeper ≠ better on graphs.</div>
+</section>
+
+<!-- Slide 13: Mitigations for Over-Smoothing -->
+<section>
+  <h2>Mitigating Over-Smoothing</h2>
+  <h3>1. Residual Connections</h3>
+  <div class="math-box">
+    \[ h_i^{(l+1)} = h_i^{(l)} + \text{GNN\_layer}(h_i^{(l)}, \ldots) \]
+    <p>Preserve original features while adding neighborhood info</p>
+  </div>
+  <h3>2. Jumping Knowledge (JK-Net)</h3>
+  <div class="math-box">
+    \[ h_i^{\text{final}} = f\!\left(h_i^{(0)}, h_i^{(1)}, \ldots, h_i^{(K)}\right) \]
+    <p>Combine ALL layer outputs: concat, max-pool, or attention over layers</p>
+  </div>
+  <h3>3. DropEdge</h3>
+  <p>Randomly remove edges during training → prevents message over-propagation</p>
+  <h3>4. APPNP (Personalized PageRank)</h3>
+  <div class="math-box">
+    \[ H^{(k)} = \alpha \cdot \hat{A} \cdot H^{(k-1)} + (1-\alpha) \cdot H^{(0)} \]
+    <p>Always "teleport" back to initial features with probability \((1-\alpha)\)</p>
+  </div>
+  <div class="intuition">The fix: don't let the GNN forget the original signal. Skip connections, layer combination, and teleportation all keep the initial features alive.</div>
+</section>
+
+<!-- Slide 14: Comparison Summary -->
+<section>
+  <h2>GNN Methods — Comparison</h2>
+  <table>
+    <tr>
+      <th>Method</th><th>Aggregation</th><th>Weighting</th><th>Inductive?</th><th>Key Idea</th>
+    </tr>
+    <tr>
+      <td><strong>GCN</strong></td>
+      <td>Mean (normalized)</td>
+      <td>Fixed (degree-based)</td>
+      <td>No</td>
+      <td>Spectral → spatial simplification</td>
+    </tr>
+    <tr>
+      <td><strong>GraphSAGE</strong></td>
+      <td>Mean/LSTM/Pool</td>
+      <td>Uniform (sampled)</td>
+      <td>Yes</td>
+      <td>Sample + aggregate function</td>
+    </tr>
+    <tr>
+      <td><strong>GAT</strong></td>
+      <td>Weighted sum</td>
+      <td>Learned attention</td>
+      <td>Yes</td>
+      <td>Content-based neighbor importance</td>
+    </tr>
+    <tr>
+      <td><strong>APPNP</strong></td>
+      <td>PPR-weighted</td>
+      <td>Teleportation α</td>
+      <td>No</td>
+      <td>Decouple transform from propagation</td>
+    </tr>
+  </table>
+  <div class="math-box" style="font-size:0.85em">
+    <p><strong>Unifying view — all are:</strong> \(\quad h_i^{(l+1)} = \sum_{j \in \mathcal{N}(i) \cup \{i\}} c_{ij} \cdot \text{TRANSFORM}(h_j^{(l)})\)</p>
+    <p>They differ only in how \(c_{ij}\) is computed and whether TRANSFORM is learned.</p>
+  </div>
+</section>
+
+<!-- Slide 15: Chapter Summary -->
+<section>
+  <h2>Chapter 2 — Summary</h2>
+  <table>
+    <tr><th>Concept</th><th>Key Formula</th><th>Takeaway</th></tr>
+    <tr><td>Message Passing</td><td>MSG → AGG → UPDATE</td><td>Unifying GNN framework</td></tr>
+    <tr><td>Spectral Convolution</td><td>\(U g_\theta(\Lambda) U^T x\)</td><td>Theoretical foundation</td></tr>
+    <tr><td>Chebyshev</td><td>\(\sum \theta_k T_k(\tilde{L})\)</td><td>K-localized, scalable</td></tr>
+    <tr><td>GCN Layer</td><td>\(\sigma(\tilde{D}^{-½}\tilde{A}\tilde{D}^{-½}HW)\)</td><td>1st-order Chebyshev = mean agg</td></tr>
+    <tr><td>GraphSAGE</td><td>Sample → AGG → Concat → W</td><td>Inductive, mini-batch</td></tr>
+    <tr><td>GAT</td><td>\(\sum \alpha_{ij} W h_j\)</td><td>Learned neighbor importance</td></tr>
+    <tr><td>Over-smoothing</td><td>\(h_i^{(K)} \to\) constant</td><td>Limits GNN depth to 2-3</td></tr>
+  </table>
+  <div class="intuition">Next chapter: how these methods are adapted specifically for recommendation systems (LightGCN, XGCN, loss functions).</div>
+</section>
+
+<!-- Quiz Slide 1 -->
+<section>
+  <h2>Quiz — Chapter 2</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> In the message passing framework, what are the three phases?
+  </div>
+  <div class="fragment quiz-a">A: <strong>Message</strong> (compute per-edge messages), <strong>Aggregate</strong> (combine incoming messages), <strong>Update</strong> (produce new node embedding)</div>
+
+  <div class="quiz-q">
+    <strong>Q2:</strong> GCN adds self-loops (A+I). What would happen without them?
+  </div>
+  <div class="fragment quiz-a">A: Without self-loops, a node's own features are NOT included in aggregation. After one layer, the node's embedding is purely a function of its neighbors — it "forgets" itself entirely.</div>
+
+  <div class="quiz-q">
+    <strong>Q3:</strong> If a node has 3 neighbors with embeddings [1,0], [0,1], [1,1], what is the mean aggregation result?
+  </div>
+  <div class="fragment quiz-a">A: Mean = ([1,0] + [0,1] + [1,1]) / 3 = [2/3, 2/3] ≈ <strong>[0.67, 0.67]</strong></div>
+</section>
+
+<!-- Quiz Slide 2 -->
+<section>
+  <h2>Quiz — Chapter 2 (continued)</h2>
+  <div class="quiz-q">
+    <strong>Q4:</strong> Why does GraphSAGE sample neighborhoods rather than using all neighbors?
+  </div>
+  <div class="fragment quiz-a">A: (1) Fixed computation budget per node — scalable to any graph size. (2) Enables mini-batch training — don't need full graph in memory. (3) Makes the model inductive — same function works on any neighborhood.</div>
+
+  <div class="quiz-q">
+    <strong>Q5:</strong> In GAT, attention coefficients α<sub>ij</sub> sum to 1 over j∈N(i). What function ensures this?
+  </div>
+  <div class="fragment quiz-a">A: <strong>Softmax</strong> over the neighborhood: α<sub>ij</sub> = exp(e<sub>ij</sub>) / Σ<sub>k∈N(i)</sub> exp(e<sub>ik</sub>). This normalizes attention weights to a valid probability distribution.</div>
+
+  <div class="quiz-q">
+    <strong>Q6:</strong> True/False: A 10-layer GCN will always outperform a 2-layer GCN because it captures higher-order structure.
+  </div>
+  <div class="fragment quiz-a">A: <strong>False</strong>. Over-smoothing causes all embeddings to converge after ~4 layers. A 10-layer GCN will perform WORSE than 2-3 layers on most tasks. Deeper ≠ better on graphs.</div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 6: Beam Search, Constrained Generation &amp; Inference</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .msg-arrow { stroke: #f97316; stroke-width: 2; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+  <h1>Chapter 6</h1>
+  <h2>Beam Search, Constrained Generation &amp; Inference</h2>
+  <p class="subtitle">Decoding strategies, prefix tries, diversity via hierarchy, business rule constraints, and the full inference pipeline</p>
+</section>
+
+<!-- Slide 2: Beam Search for Item Generation -->
+<section>
+  <h2>Beam Search for Item Generation</h2>
+  <div class="two-col">
+    <div>
+      <div class="step"><strong>Step 1:</strong> Start with top-B tokens at Level 1 (product family)</div>
+      <div class="step"><strong>Step 2:</strong> For each beam, expand by vocabulary at next level</div>
+      <div class="step"><strong>Step 3:</strong> Score all B×|V<sub>l</sub>| candidates, keep top-B</div>
+      <div class="step"><strong>Step 4:</strong> Repeat until all levels decoded</div>
+      <div class="math-box">
+        <p>\(\text{Score}(y_{1:l}) = \sum_{k=1}^{l} \log P(y_k \mid y_{1:k-1}, \mathbf{h})\)</p>
+        <p>Keep top-B sequences by cumulative log-probability</p>
+      </div>
+    </div>
+    <div>
+      <svg width="280" height="220">
+        <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/></marker></defs>
+        <!-- Level labels -->
+        <text x="15" y="30" style="fill:#8b949e;font-size:11px">L1</text>
+        <text x="15" y="80" style="fill:#8b949e;font-size:11px">L3</text>
+        <text x="15" y="130" style="fill:#8b949e;font-size:11px">L4</text>
+        <text x="15" y="180" style="fill:#8b949e;font-size:11px">L5</text>
+        <!-- Root -->
+        <circle cx="140" cy="20" r="8" style="fill:#58a6ff"/>
+        <!-- L1 beams (B=3) -->
+        <circle cx="70" cy="70" r="8" style="fill:#4ade80"/>
+        <circle cx="140" cy="70" r="8" style="fill:#4ade80"/>
+        <circle cx="210" cy="70" r="8" style="fill:#4ade80"/>
+        <line x1="140" y1="28" x2="70" y2="62" style="stroke:#4ade80;stroke-width:1.5"/>
+        <line x1="140" y1="28" x2="140" y2="62" style="stroke:#4ade80;stroke-width:1.5"/>
+        <line x1="140" y1="28" x2="210" y2="62" style="stroke:#4ade80;stroke-width:1.5"/>
+        <!-- L3 expansion (pruned) -->
+        <circle cx="50" cy="120" r="6" style="fill:#f97316"/>
+        <circle cx="90" cy="120" r="6" style="fill:#f97316"/>
+        <circle cx="130" cy="120" r="6" style="fill:#888;opacity:0.4"/>
+        <circle cx="160" cy="120" r="6" style="fill:#f97316"/>
+        <circle cx="200" cy="120" r="6" style="fill:#888;opacity:0.4"/>
+        <circle cx="230" cy="120" r="6" style="fill:#888;opacity:0.4"/>
+        <line x1="70" y1="78" x2="50" y2="114" style="stroke:#f97316;stroke-width:1"/>
+        <line x1="70" y1="78" x2="90" y2="114" style="stroke:#f97316;stroke-width:1"/>
+        <line x1="140" y1="78" x2="130" y2="114" style="stroke:#888;stroke-width:1;opacity:0.4"/>
+        <line x1="140" y1="78" x2="160" y2="114" style="stroke:#f97316;stroke-width:1"/>
+        <line x1="210" y1="78" x2="200" y2="114" style="stroke:#888;stroke-width:1;opacity:0.4"/>
+        <line x1="210" y1="78" x2="230" y2="114" style="stroke:#888;stroke-width:1;opacity:0.4"/>
+        <!-- L4 kept beams -->
+        <circle cx="50" cy="170" r="6" style="fill:#a78bfa"/>
+        <circle cx="90" cy="170" r="6" style="fill:#a78bfa"/>
+        <circle cx="160" cy="170" r="6" style="fill:#a78bfa"/>
+        <line x1="50" y1="126" x2="50" y2="164" style="stroke:#a78bfa;stroke-width:1"/>
+        <line x1="90" y1="126" x2="90" y2="164" style="stroke:#a78bfa;stroke-width:1"/>
+        <line x1="160" y1="126" x2="160" y2="164" style="stroke:#a78bfa;stroke-width:1"/>
+        <!-- Legend -->
+        <text x="140" y="205" style="fill:#8b949e;font-size:10px;text-anchor:middle">B=3: keep top-3 at each level</text>
+        <text x="140" y="218" style="fill:#888;font-size:10px;text-anchor:middle">Gray = pruned candidates</text>
+      </svg>
+    </div>
+  </div>
+  <div class="intuition">Beam search is greedy search with B parallel hypotheses — it trades compute (B× more work per level) for better global sequences.</div>
+</section>
+
+<!-- Slide 3: Prefix Trie for Constrained Generation -->
+<section>
+  <h2>Prefix Trie for Constrained Generation</h2>
+  <div class="two-col">
+    <div>
+      <h3>Construction:</h3>
+      <div class="step">Build trie from all valid item token tuples \((t_1, t_2, \ldots, t_K)\)</div>
+      <div class="step">Each path root→leaf = one real item's token sequence</div>
+      <div class="step">At decoding step \(l\): only allow tokens that exist as children of current prefix</div>
+      <div class="math-box">
+        <p><strong>Guarantee:</strong> Every completed sequence maps to ≥1 real item</p>
+        <p><strong>Space:</strong> \(O(|\mathcal{I}| \times K)\) where \(K\) = number of levels</p>
+        <p><strong>Lookup:</strong> \(O(1)\) per step (hash children)</p>
+      </div>
+      <div class="intuition">The trie acts as a guardrail — the model can only "hallucinate" items that actually exist in your catalog.</div>
+    </div>
+    <div>
+      <svg width="260" height="220">
+        <!-- Root -->
+        <circle cx="130" cy="20" r="10" style="fill:#58a6ff"/>
+        <text x="130" y="24" style="fill:#fff;font-size:10px;text-anchor:middle">root</text>
+        <!-- L1: phone, headphone -->
+        <circle cx="70" cy="70" r="9" style="fill:#4ade80"/>
+        <text x="70" y="74" style="fill:#000;font-size:8px;text-anchor:middle">📱</text>
+        <circle cx="190" cy="70" r="9" style="fill:#4ade80"/>
+        <text x="190" y="74" style="fill:#000;font-size:8px;text-anchor:middle">🎧</text>
+        <line x1="130" y1="30" x2="70" y2="61" style="stroke:#4ade80;stroke-width:1.5"/>
+        <line x1="130" y1="30" x2="190" y2="61" style="stroke:#4ade80;stroke-width:1.5"/>
+        <!-- L3: apple, android under phone -->
+        <circle cx="40" cy="120" r="8" style="fill:#f97316"/>
+        <text x="40" y="124" style="fill:#fff;font-size:7px;text-anchor:middle">🍎</text>
+        <circle cx="100" cy="120" r="8" style="fill:#f97316"/>
+        <text x="100" y="124" style="fill:#fff;font-size:7px;text-anchor:middle">🤖</text>
+        <line x1="70" y1="79" x2="40" y2="112" style="stroke:#f97316;stroke-width:1.5"/>
+        <line x1="70" y1="79" x2="100" y2="112" style="stroke:#f97316;stroke-width:1.5"/>
+        <!-- L3: under headphone -->
+        <circle cx="170" cy="120" r="8" style="fill:#f97316"/>
+        <text x="170" y="124" style="fill:#fff;font-size:7px;text-anchor:middle">🍎</text>
+        <circle cx="220" cy="120" r="8" style="fill:#f97316"/>
+        <text x="220" y="124" style="fill:#fff;font-size:7px;text-anchor:middle">agn</text>
+        <line x1="190" y1="79" x2="170" y2="112" style="stroke:#f97316;stroke-width:1.5"/>
+        <line x1="190" y1="79" x2="220" y2="112" style="stroke:#f97316;stroke-width:1.5"/>
+        <!-- L4 leaves -->
+        <circle cx="25" cy="170" r="7" style="fill:#a78bfa"/>
+        <text x="25" y="174" style="fill:#fff;font-size:7px;text-anchor:middle">iPh</text>
+        <circle cx="55" cy="170" r="7" style="fill:#a78bfa"/>
+        <text x="55" y="174" style="fill:#fff;font-size:7px;text-anchor:middle">iPd</text>
+        <circle cx="85" cy="170" r="7" style="fill:#a78bfa"/>
+        <text x="85" y="174" style="fill:#fff;font-size:7px;text-anchor:middle">Sam</text>
+        <circle cx="115" cy="170" r="7" style="fill:#a78bfa"/>
+        <text x="115" y="174" style="fill:#fff;font-size:7px;text-anchor:middle">Pix</text>
+        <line x1="40" y1="128" x2="25" y2="163" style="stroke:#a78bfa;stroke-width:1"/>
+        <line x1="40" y1="128" x2="55" y2="163" style="stroke:#a78bfa;stroke-width:1"/>
+        <line x1="100" y1="128" x2="85" y2="163" style="stroke:#a78bfa;stroke-width:1"/>
+        <line x1="100" y1="128" x2="115" y2="163" style="stroke:#a78bfa;stroke-width:1"/>
+        <!-- Labels -->
+        <text x="5" y="45" style="fill:#8b949e;font-size:9px">L1</text>
+        <text x="5" y="100" style="fill:#8b949e;font-size:9px">L3</text>
+        <text x="5" y="150" style="fill:#8b949e;font-size:9px">L4</text>
+        <!-- Invalid path X -->
+        <text x="130" y="200" style="fill:#f87171;font-size:10px;text-anchor:middle">❌ phone→agnostic→iPhone = INVALID (not in trie)</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 4: Hierarchical Beam Search and Diversity -->
+<section>
+  <h2>Hierarchical Beam Search &amp; Diversity</h2>
+  <div class="two-col">
+    <div>
+      <h3>Natural Diversity from Hierarchy:</h3>
+      <p>Level 1 beams spread across <strong>categories</strong> — no MMR needed!</p>
+      <div class="math-box">
+        <p><strong>Example: B=10</strong></p>
+        <p>L1 beams: 4× smartphones, 3× headphones, 2× cases, 1× charger</p>
+        <p>L3 beams: mix of Apple, Android, agnostic within each</p>
+        <p>Result: diverse across product types AND ecosystems</p>
+      </div>
+      <div class="step">Coarse-to-fine decoding = implicit diversity</div>
+      <div class="step">No post-hoc re-ranking (MMR/DPP) required</div>
+      <div class="step">Diversity is a FREE byproduct of hierarchical tokens</div>
+    </div>
+    <div>
+      <h3>B=10 Beam Allocation:</h3>
+      <table>
+        <tr><th>Category (L1)</th><th>Beams</th><th>Example Items</th></tr>
+        <tr><td style="color:#4ade80">📱 Smartphones</td><td>4</td><td>iPhone 15, Galaxy S24, Pixel 8, OnePlus 12</td></tr>
+        <tr><td style="color:#a78bfa">🎧 Headphones</td><td>3</td><td>AirPods Pro, Sony WH, boAt Rockerz</td></tr>
+        <tr><td style="color:#f97316">📦 Cases</td><td>2</td><td>Spigen, OtterBox</td></tr>
+        <tr><td style="color:#58a6ff">🔌 Chargers</td><td>1</td><td>Anker 65W</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="intuition">Traditional methods need MMR to avoid "10 slightly different iPhones." Hierarchical generation avoids this by design — the tree structure forces beams to branch early.</div>
+</section>
+
+<!-- Slide 5: Constrained Generation for Business Rules -->
+<section>
+  <h2>Constrained Generation for Business Rules</h2>
+  <h3>Constraints as Trie Filtering — Zero Cost at Inference</h3>
+  <table>
+    <tr><th>Business Rule</th><th>Constraint Level</th><th>Implementation</th></tr>
+    <tr><td>"Only Apple products"</td><td>L3 (Ecosystem)</td><td>Allow only <code>apple</code> token at L3</td></tr>
+    <tr><td>"Only items under ₹5000"</td><td>L5 (Price Tier)</td><td>Allow only <code>budget</code>, <code>mid-range</code> at L5</td></tr>
+    <tr><td>"Only from campaign category"</td><td>L1 (Family)</td><td>Allow only <code>headphones</code> at L1</td></tr>
+    <tr><td>"Premium brands only"</td><td>L4 (Brand Group)</td><td>Filter trie to top-tier brands</td></tr>
+    <tr><td>"Gaming intent users"</td><td>L6 (Use-Case)</td><td>Allow only <code>gaming</code> at L6</td></tr>
+  </table>
+  <div class="math-box">
+    <p><strong>Key insight:</strong> Constraints are just trie subtree selection</p>
+    <p>\(P(y_l \mid y_{1:l-1}, \mathbf{h}) \to P(y_l \mid y_{1:l-1}, \mathbf{h}) \cdot \mathbb{1}[y_l \in \text{Trie}(y_{1:l-1}) \cap \mathcal{C}]\)</p>
+    <p>Where \(\mathcal{C}\) = allowed tokens from business constraint</p>
+  </div>
+  <div class="intuition">This is the killer feature: in discriminative models, filtering is post-hoc and wastes compute. In generative models, constraints guide generation — you never score invalid items at all.</div>
+</section>
+
+<!-- Slide 6: Full-Catalog vs uni100 Evaluation -->
+<section>
+  <h2>Full-Catalog vs uni100 Evaluation</h2>
+  <div class="two-col">
+    <div>
+      <h3>uni100 Protocol:</h3>
+      <div class="step">Sample 99 random negatives + 1 positive</div>
+      <div class="step">Rank target among 100 candidates</div>
+      <div class="step">Easy negatives → inflated metrics</div>
+      <div class="step">Standard in papers (SASRec, BERT4Rec, TIGER)</div>
+      <div class="math-box">
+        <p><strong>Problem:</strong> Random negatives are too easy</p>
+        <p>Recall@10 under uni100 ≈ 0.85+</p>
+        <p>Recall@10 under full-catalog ≈ 0.40</p>
+      </div>
+    </div>
+    <div>
+      <h3>Full-Catalog with Beam Search:</h3>
+      <div class="step">Decode top-B sequences (B=50 or 100)</div>
+      <div class="step">Resolve each sequence to item(s) via trie</div>
+      <div class="step">Rank resolved items by beam score</div>
+      <div class="step">Check if target item appears in top-K</div>
+      <div class="math-box">
+        <p><strong>Advantage:</strong> Scales to any catalog size</p>
+        <p>Decode B=100 items from 45K catalog</p>
+        <p>Cost: \(O(B \times K \times |V_{max}|)\) — NOT \(O(|\mathcal{I}|)\)</p>
+      </div>
+    </div>
+  </div>
+  <div class="intuition">GenRec's beam search is sublinear in catalog size — discriminative models must score ALL items. This is why generative retrieval scales better to million-item catalogs.</div>
+</section>
+
+<!-- Slide 7: Inference Pipeline -->
+<section>
+  <h2>Inference Pipeline</h2>
+  <svg width="700" height="100">
+    <defs><marker id="arr2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#58a6ff"/></marker></defs>
+    <!-- Boxes -->
+    <rect x="10" y="30" width="120" height="40" rx="6" style="fill:#1c3a5e;stroke:#58a6ff"/>
+    <text x="70" y="55" style="fill:#fff;font-size:11px;text-anchor:middle">Encode History</text>
+    <rect x="160" y="30" width="140" height="40" rx="6" style="fill:#1c3a5e;stroke:#4ade80"/>
+    <text x="230" y="55" style="fill:#fff;font-size:11px;text-anchor:middle">Beam Decode (Trie)</text>
+    <rect x="330" y="30" width="130" height="40" rx="6" style="fill:#1c3a5e;stroke:#f97316"/>
+    <text x="395" y="55" style="fill:#fff;font-size:11px;text-anchor:middle">Resolve Collisions</text>
+    <rect x="490" y="30" width="130" height="40" rx="6" style="fill:#1c3a5e;stroke:#a78bfa"/>
+    <text x="555" y="55" style="fill:#fff;font-size:11px;text-anchor:middle">Business Rules</text>
+    <!-- Arrows -->
+    <line x1="130" y1="50" x2="158" y2="50" style="stroke:#58a6ff;stroke-width:2;marker-end:url(#arr2)"/>
+    <line x1="300" y1="50" x2="328" y2="50" style="stroke:#58a6ff;stroke-width:2;marker-end:url(#arr2)"/>
+    <line x1="460" y1="50" x2="488" y2="50" style="stroke:#58a6ff;stroke-width:2;marker-end:url(#arr2)"/>
+    <!-- Output -->
+    <rect x="640" y="30" width="50" height="40" rx="6" style="fill:#1a3d2a;stroke:#4ade80"/>
+    <text x="665" y="55" style="fill:#4ade80;font-size:11px;text-anchor:middle">Top-K</text>
+    <line x1="620" y1="50" x2="638" y2="50" style="stroke:#58a6ff;stroke-width:2;marker-end:url(#arr2)"/>
+  </svg>
+  <div class="two-col">
+    <div>
+      <h3>Latency Breakdown:</h3>
+      <table>
+        <tr><th>Stage</th><th>Time</th><th>Notes</th></tr>
+        <tr><td>Encode</td><td>~5ms</td><td>Bidirectional attention over sequence</td></tr>
+        <tr><td>Beam Decode</td><td>~15ms</td><td>K levels × B beams × vocab lookup</td></tr>
+        <tr><td>Collision Resolve</td><td>~3ms</td><td>ID head forward pass</td></tr>
+        <tr><td>Business Rules</td><td>~1ms</td><td>Trie constraint (already applied)</td></tr>
+        <tr><th>Total</th><th>~24ms</th><th>p50 latency (B=20)</th></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Beam Width Trade-off:</h3>
+      <table>
+        <tr><th>B</th><th>Recall@10</th><th>Latency</th></tr>
+        <tr><td>5</td><td>0.38</td><td>8ms</td></tr>
+        <tr><td>10</td><td>0.44</td><td>12ms</td></tr>
+        <tr><td>20</td><td>0.48</td><td>24ms</td></tr>
+        <tr><td>50</td><td>0.50</td><td>55ms</td></tr>
+        <tr><td>100</td><td>0.51</td><td>105ms</td></tr>
+      </table>
+      <p style="font-size:0.8em;color:#8b949e">Diminishing returns after B=20</p>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 8: Summary -->
+<section>
+  <h2>Chapter 6 — Summary</h2>
+  <table>
+    <tr><th>Concept</th><th>Key Idea</th><th>Takeaway</th></tr>
+    <tr><td>Beam Search</td><td>Top-B partial sequences per level</td><td>Sublinear in catalog size</td></tr>
+    <tr><td>Prefix Trie</td><td>Only valid completions allowed</td><td>Zero hallucinated items</td></tr>
+    <tr><td>Hierarchical Diversity</td><td>L1 beams spread across categories</td><td>No MMR/DPP needed</td></tr>
+    <tr><td>Business Constraints</td><td>Trie subtree filtering</td><td>Free at inference time</td></tr>
+    <tr><td>Full-Catalog Eval</td><td>Beam decode → resolve → rank</td><td>Honest metrics (no easy negatives)</td></tr>
+    <tr><td>Inference Pipeline</td><td>Encode → Decode → Resolve → Filter</td><td>~24ms p50 at B=20</td></tr>
+  </table>
+  <div class="math-box">
+    <p><strong>Core equation:</strong> \(\text{score}(y_{1:K}) = \sum_{l=1}^{K} \log P(y_l \mid y_{1:l-1}, \mathbf{h}) \cdot \mathbb{1}[y_{1:l} \in \text{Trie}]\)</p>
+  </div>
+  <div class="intuition">Generative retrieval's inference advantage: constrained decoding unifies candidate generation, diversity, and business rules into a single beam search pass.</div>
+</section>
+
+<!-- Quiz Slide 1 -->
+<section>
+  <h2>Quiz — Chapter 6</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> Why does beam search with B=20 at K=6 levels NOT require scoring all 45K items?
+  </div>
+  <div class="fragment quiz-a">A: At each level, beam search only expands B active hypotheses by the vocabulary at that level (|V<sub>l</sub>| ≈ 18–256). Total candidates scored: B × K × |V<sub>max</sub>| ≈ 20 × 6 × 256 = 30,720 scores — but across all levels combined. The output is at most B=20 complete sequences, not the full catalog. This is <strong>sublinear</strong> in |catalog|.</div>
+
+  <div class="quiz-q">
+    <strong>Q2:</strong> A prefix trie guarantees every generated sequence maps to a real item. What happens if the model assigns high probability to an invalid token path?
+  </div>
+  <div class="fragment quiz-a">A: The trie <strong>masks out</strong> invalid tokens before the softmax (sets logit to −∞). The model's probability mass is redistributed among valid continuations only. The invalid path is never explored — it's as if those tokens don't exist in the vocabulary for that position.</div>
+</section>
+
+<!-- Quiz Slide 2 -->
+<section>
+  <h2>Quiz — Chapter 6 (continued)</h2>
+  <div class="quiz-q">
+    <strong>Q3:</strong> How does hierarchical beam search achieve diversity WITHOUT an explicit diversity objective (like MMR)?
+  </div>
+  <div class="fragment quiz-a">A: At Level 1, the model distributes probability across multiple product categories (smartphones, headphones, cases). With B=10 beams, different L1 tokens survive → downstream beams specialize within each category. The <strong>tree structure forces early branching</strong>, which produces diverse final items as a natural byproduct of the coarse-to-fine decoding order.</div>
+
+  <div class="quiz-q">
+    <strong>Q4:</strong> You want to constrain recommendations to "Apple products under ₹50,000." Which levels do you constrain, and what is the computational cost of this constraint?
+  </div>
+  <div class="fragment quiz-a">A: Constrain <strong>L3=apple</strong> (ecosystem) and <strong>L5=budget or mid-range</strong> (price tier). Cost: <strong>zero additional compute</strong> — you simply restrict the trie traversal to subtrees matching these constraints. The beam search runs the same algorithm with a smaller effective vocabulary at those levels. This is why generative retrieval has an inherent advantage for filtered/constrained recommendation.</div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>

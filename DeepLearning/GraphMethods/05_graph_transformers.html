@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 5: Graph Transformers</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .msg-arrow { stroke: #f97316; stroke-width: 2; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+  <h1>Chapter 5</h1>
+  <h2>Graph Transformers</h2>
+  <p class="subtitle">Beyond message passing: self-attention on graphs, positional encodings, Graphormer, hybrid architectures, and efficient scaling</p>
+</section>
+
+<!-- Slide 1: Limitations of Message Passing -->
+<section>
+  <h2>Limitations of Message Passing</h2>
+  <div class="two-col">
+    <div>
+      <div class="step"><strong>1. Fixed receptive field:</strong> K-layer GNN sees only K-hop neighbors</div>
+      <div class="step"><strong>2. Over-squashing:</strong> information from distant nodes compressed through bottleneck</div>
+      <div class="math-box">
+        <p>\(\frac{\partial h_v^{(K)}}{\partial x_u}\) decays <strong>exponentially</strong> with distance\((u,v)\)</p>
+      </div>
+      <div class="step"><strong>3. Structural blindness:</strong> GNNs bounded by WL test — can't distinguish certain non-isomorphic graphs</div>
+    </div>
+    <div>
+      <svg width="240" height="200">
+        <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/></marker></defs>
+        <!-- Graph A: 6-cycle -->
+        <text x="60" y="15" style="fill:#8b949e;font-size:11px;text-anchor:middle">Graph A (6-cycle)</text>
+        <circle cx="60" cy="45" r="8" style="fill:#58a6ff" class="node"/>
+        <circle cx="90" cy="60" r="8" style="fill:#58a6ff" class="node"/>
+        <circle cx="90" cy="90" r="8" style="fill:#58a6ff" class="node"/>
+        <circle cx="60" cy="105" r="8" style="fill:#58a6ff" class="node"/>
+        <circle cx="30" cy="90" r="8" style="fill:#58a6ff" class="node"/>
+        <circle cx="30" cy="60" r="8" style="fill:#58a6ff" class="node"/>
+        <line x1="60" y1="45" x2="90" y2="60" class="edge"/>
+        <line x1="90" y1="60" x2="90" y2="90" class="edge"/>
+        <line x1="90" y1="90" x2="60" y2="105" class="edge"/>
+        <line x1="60" y1="105" x2="30" y2="90" class="edge"/>
+        <line x1="30" y1="90" x2="30" y2="60" class="edge"/>
+        <line x1="30" y1="60" x2="60" y2="45" class="edge"/>
+        <!-- Graph B: two triangles -->
+        <text x="180" y="15" style="fill:#8b949e;font-size:11px;text-anchor:middle">Graph B (2×triangles)</text>
+        <circle cx="160" cy="45" r="8" style="fill:#4ade80" class="node"/>
+        <circle cx="180" cy="75" r="8" style="fill:#4ade80" class="node"/>
+        <circle cx="140" cy="75" r="8" style="fill:#4ade80" class="node"/>
+        <circle cx="160" cy="95" r="8" style="fill:#4ade80" class="node"/>
+        <circle cx="180" cy="120" r="8" style="fill:#4ade80" class="node"/>
+        <circle cx="140" cy="120" r="8" style="fill:#4ade80" class="node"/>
+        <line x1="160" y1="45" x2="180" y2="75" class="edge"/>
+        <line x1="160" y1="45" x2="140" y2="75" class="edge"/>
+        <line x1="180" y1="75" x2="140" y2="75" class="edge"/>
+        <line x1="160" y1="95" x2="180" y2="120" class="edge"/>
+        <line x1="160" y1="95" x2="140" y2="120" class="edge"/>
+        <line x1="180" y1="120" x2="140" y2="120" class="edge"/>
+        <!-- Label -->
+        <text x="120" y="160" style="fill:#f87171;font-size:11px;text-anchor:middle">Both: all nodes degree 2</text>
+        <text x="120" y="175" style="fill:#f87171;font-size:11px;text-anchor:middle">1-WL GNN: SAME embedding!</text>
+        <text x="120" y="190" style="fill:#8b949e;font-size:10px;text-anchor:middle">But graphs are NOT isomorphic</text>
+      </svg>
+    </div>
+  </div>
+  <div class="intuition">What if a node could attend to ANY other node, regardless of graph distance? That's the motivation for Graph Transformers.</div>
+</section>
+
+<!-- Slide 2: Self-Attention on Graphs -->
+<section>
+  <h2>Self-Attention on Graphs</h2>
+  <div class="math-box">
+    <p><strong>Standard Transformer Attention:</strong></p>
+    \[ \text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right) V \]
+    <p>On graphs: \(Q = H W_Q\), \(K = H W_K\), \(V = H W_V\) where \(H \in \mathbb{R}^{n \times d}\) = all node features</p>
+  </div>
+  <div class="step"><strong>Result:</strong> every node can "see" every other node — <strong>global receptive field</strong> in one layer</div>
+  <div class="step"><strong>Cost:</strong> \(O(n^2 \cdot d)\) — quadratic in number of nodes</div>
+  <div class="step"><strong>Problem:</strong> ignores graph structure entirely (treats graph as complete graph)</div>
+  <div class="step"><strong>Solution:</strong> incorporate structure via positional encodings + attention bias terms</div>
+  <div class="intuition">A naive graph transformer throws away the adjacency matrix — defeating the purpose. The art is encoding structure INTO the attention mechanism so the model knows who is a neighbor and who is distant.</div>
+</section>
+
+<!-- Slide 3: Positional Encodings for Graphs -->
+<section>
+  <h2>Positional Encodings for Graphs</h2>
+  <p>Problem: graphs have <strong>no inherent node order</strong> (unlike sequences with position 1, 2, 3…)</p>
+  <h3>1. Laplacian Eigenvector PE</h3>
+  <div class="math-box">
+    \[ \text{PE}(v) = [\phi_1(v),\; \phi_2(v),\; \ldots,\; \phi_k(v)] \]
+    <p>First \(k\) eigenvectors of graph Laplacian \(L = D - A\), evaluated at node \(v\)</p>
+    <p style="color:#f87171">⚠️ Sign ambiguity: \(\phi\) and \(-\phi\) are both valid eigenvectors</p>
+  </div>
+  <h3>2. Random Walk PE (RWPE)</h3>
+  <div class="math-box">
+    \[ \text{RWPE}(v) = [RW^1_{vv},\; RW^2_{vv},\; \ldots,\; RW^K_{vv}] \]
+    <p>Landing probability of returning to \(v\) after \(k\) steps — captures local structure (triangles, cycles)</p>
+    <p style="color:#4ade80">✓ No sign ambiguity, computationally cheap \(O(K \cdot |E|)\)</p>
+  </div>
+  <h3>3. Learned PE</h3>
+  <p>Train a small GNN to generate positional features — adapts to task</p>
+  <div class="intuition">Eigenvectors tell you "where" a node sits in the global structure (center vs periphery, bridge vs cluster). Random walk probabilities tell you about local topology. Both inform the transformer about graph geometry.</div>
+</section>
+
+<!-- Slide 4: Graphormer -->
+<section>
+  <h2>Graphormer (Ying et al., 2021)</h2>
+  <p>Three structural encodings injected into a standard Transformer:</p>
+  <div class="step"><strong>1. Centrality Encoding:</strong> node degree as bias to input embeddings
+    <br>\(\quad h_v^{(0)} = x_v + b_{\text{deg}^-(v)} + b_{\text{deg}^+(v)}\)</div>
+  <div class="step"><strong>2. Spatial Encoding:</strong> shortest-path distance as attention bias
+    <br>\(\quad A_{ij} \mathrel{+}= b_{\text{SPD}}(d(v_i, v_j))\) — closer nodes get attention boost</div>
+  <div class="step"><strong>3. Edge Encoding:</strong> aggregate edge features along shortest path
+    <br>\(\quad E_{ij} = \frac{1}{|SP(i,j)|} \sum_{e \in SP(i,j)} x_e \cdot w_e\)</div>
+  <div class="math-box">
+    <p><strong>Modified Attention:</strong></p>
+    \[ A_{ij} = \frac{(h_i W_Q)(h_j W_K)^T}{\sqrt{d}} + b_{\text{spatial}}(i,j) + b_{\text{edge}}(i,j) \]
+  </div>
+  <p><strong>Results:</strong> SOTA on OGB molecular benchmarks (OGB-LSC)</p>
+  <p style="color:#f87171"><strong>Limitation:</strong> all-pairs shortest paths = \(O(n^2)\) precomputation</p>
+  <div class="intuition">Graphormer doesn't replace graph structure — it encodes it INTO the attention mechanism. The graph topology becomes soft biases that guide where attention flows.</div>
+</section>
+
+<!-- Slide 5: Hybrid Approaches -->
+<section>
+  <h2>Hybrid Approaches — Local + Global</h2>
+  <p>Strategy: use GNN for <strong>local</strong> aggregation, Transformer for <strong>global</strong> context</p>
+  <h3>Architecture Patterns:</h3>
+  <div class="step"><strong>1. GNN → Transformer (Sequential):</strong> GNN embeddings fed into transformer layers</div>
+  <div class="step"><strong>2. Parallel:</strong> GNN branch + Transformer branch → combine outputs</div>
+  <div class="step"><strong>3. Interleaved:</strong> alternate GNN and Transformer layers</div>
+  <div class="math-box">
+    <p><strong>GPS Framework (Rampášek et al., 2022):</strong></p>
+    \[ h_v^{(l+1)} = h_v^{(l)} + \underbrace{\text{GNN}_{\text{local}}(h_v^{(l)}, \{h_u^{(l)}: u \in \mathcal{N}(v)\})}_{\text{local neighborhood}} + \underbrace{\text{Transformer}_{\text{global}}(h_v^{(l)}, H^{(l)})}_{\text{global attention}} \]
+    <p>Each layer: local captures neighborhood structure, global captures long-range dependencies</p>
+  </div>
+  <table>
+    <tr><th>Pattern</th><th>Local?</th><th>Global?</th><th>Trade-off</th></tr>
+    <tr><td>Pure GNN</td><td style="color:#4ade80">✓</td><td style="color:#f87171">✗</td><td>Fast, limited range</td></tr>
+    <tr><td>Pure Transformer</td><td style="color:#f87171">✗</td><td style="color:#4ade80">✓</td><td>No structure bias</td></tr>
+    <tr><td>GPS (Hybrid)</td><td style="color:#4ade80">✓</td><td style="color:#4ade80">✓</td><td>More params, best expressiveness</td></tr>
+  </table>
+  <div class="intuition">The best of both worlds: GNN handles neighborhood patterns (cheap, structured), Transformer handles long-range dependencies (expensive, flexible).</div>
+</section>
+
+<!-- Slide 6: Efficient Graph Transformers -->
+<section>
+  <h2>Efficient Graph Transformers</h2>
+  <p>Full attention: \(O(n^2)\) — impractical for million-node graphs</p>
+  <div class="step"><strong>1. Sparse Attention:</strong> attend only to graph neighbors + sampled distant nodes → \(O(n \cdot k)\)</div>
+  <div class="step"><strong>2. Performer / Linear Attention:</strong> approximate softmax with random features
+    <br>\(\quad \text{softmax}(QK^T) \approx \phi(Q)\phi(K)^T\) → \(O(n \cdot d^2)\) linear in nodes</div>
+  <div class="step"><strong>3. Cluster-Based:</strong> cluster nodes → attend within clusters + across cluster representatives</div>
+  <div class="step"><strong>4. Sampling:</strong> attend to random subset of nodes each layer (like dropout for attention)</div>
+  <div class="math-box">
+    <p><strong>Practical numbers:</strong></p>
+    <table>
+      <tr><th>Nodes</th><th>Full Attention</th><th>Sparse (k=32)</th><th>Linear</th></tr>
+      <tr><td>1K</td><td>1M ops</td><td>32K ops</td><td>~1K·d² ops</td></tr>
+      <tr><td>1M</td><td>10¹² ops ✗</td><td>32M ops ✓</td><td>~1M·d² ops ✓</td></tr>
+      <tr><td>28M (users)</td><td>impossible</td><td>896M ops</td><td>~28M·d²</td></tr>
+    </table>
+  </div>
+  <svg width="450" height="80">
+    <!-- Attention matrix visualization -->
+    <text x="80" y="15" style="fill:#8b949e;font-size:11px;text-anchor:middle">Full (Dense)</text>
+    <rect x="20" y="20" width="60" height="60" style="fill:#58a6ff;opacity:0.6"/>
+    <text x="250" y="15" style="fill:#8b949e;font-size:11px;text-anchor:middle">Sparse (Block + Bridges)</text>
+    <!-- Block diagonal -->
+    <rect x="200" y="20" width="20" height="20" style="fill:#58a6ff;opacity:0.6"/>
+    <rect x="220" y="40" width="20" height="20" style="fill:#4ade80;opacity:0.6"/>
+    <rect x="240" y="60" width="20" height="20" style="fill:#a78bfa;opacity:0.6"/>
+    <!-- Bridge connections -->
+    <rect x="220" y="20" width="20" height="2" style="fill:#f97316;opacity:0.8"/>
+    <rect x="200" y="40" width="2" height="20" style="fill:#f97316;opacity:0.8"/>
+    <rect x="240" y="40" width="20" height="2" style="fill:#f97316;opacity:0.8"/>
+    <!-- Labels -->
+    <text x="80" y="55" style="fill:#fff;font-size:10px;text-anchor:middle">O(n²)</text>
+    <text x="250" y="55" style="fill:#fff;font-size:10px;text-anchor:middle">O(n·k)</text>
+  </svg>
+  <div class="intuition">For real recommendation graphs (millions of nodes), you MUST use sparse or linear attention. The question becomes: which nodes deserve attention?</div>
+</section>
+
+<!-- Slide 7: Graph Transformers for Recommendations -->
+<section>
+  <h2>Graph Transformers for Recommendations</h2>
+  <h3>Why transformers for RecSys graphs?</h3>
+  <div class="step"><strong>Long-range dependencies:</strong> user A → item X → user B → item Y (4-hop collaborative path)
+    <br>GNN needs 4 layers (over-smoothing risk) — Transformer attends directly</div>
+  <h3>Sequential Recommendation as Graph Transformers:</h3>
+  <div class="math-box">
+    <p><strong>SASRec:</strong> left-to-right self-attention on interaction sequence</p>
+    <p><strong>BERT4Rec:</strong> bidirectional masked-item prediction</p>
+    <p>Both are "sequence transformers on the interaction graph" — treating temporal item sequence as a directed path</p>
+  </div>
+  <h3>Cross-Attention between Users and Items:</h3>
+  <p>User representations attend to item set; items attend to user set → learned bipartite interactions</p>
+  <div class="step"><strong>Current State:</strong> graph transformers for RecSys are emerging but not yet dominant
+    <br>• Compute cost vs marginal gain over simpler GNN methods (LightGCN)
+    <br>• Best results: hybrid architectures (GNN backbone + transformer refinement)</div>
+  <div class="intuition">For recommendations, the transformer's strength is capturing non-local collaborative signals that a 2-layer GNN would miss. But the cost-benefit trade-off is still being figured out.</div>
+</section>
+
+<!-- Slide 8: Summary Table -->
+<section>
+  <h2>Chapter 5 — Summary</h2>
+  <table>
+    <tr><th>Concept</th><th>Key Idea</th><th>Complexity</th></tr>
+    <tr><td>Message Passing Limits</td><td>Over-squashing, WL test bound</td><td>—</td></tr>
+    <tr><td>Naive Graph Transformer</td><td>Full attention over all nodes</td><td>\(O(n^2 d)\)</td></tr>
+    <tr><td>Laplacian PE</td><td>Eigenvectors as position (sign ambiguous)</td><td>\(O(n^2)\) eigendecomp</td></tr>
+    <tr><td>Random Walk PE</td><td>Return probabilities (no ambiguity)</td><td>\(O(K|E|)\)</td></tr>
+    <tr><td>Graphormer</td><td>Centrality + spatial + edge bias</td><td>\(O(n^2)\) SPD</td></tr>
+    <tr><td>GPS (Hybrid)</td><td>GNN<sub>local</sub> + Transformer<sub>global</sub></td><td>\(O(n^2 d + |E|d)\)</td></tr>
+    <tr><td>Sparse/Linear Attention</td><td>Sub-quadratic approximations</td><td>\(O(nk)\) or \(O(nd^2)\)</td></tr>
+    <tr><td>RecSys Transformers</td><td>SASRec, BERT4Rec, cross-attention</td><td>Sequence length dependent</td></tr>
+  </table>
+  <div class="intuition">Graph Transformers solve the range limitation of GNNs by allowing global attention — but must re-inject graph structure (via PE and bias terms) to avoid losing the topology that makes graphs useful.</div>
+</section>
+
+<!-- Quiz Slide 1 -->
+<section>
+  <h2>Quiz — Chapter 5</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> What is over-squashing and why does it limit deep GNNs?
+  </div>
+  <div class="fragment quiz-a">A: Over-squashing occurs when information from exponentially many distant nodes must be compressed into a fixed-size vector at intermediate nodes. Mathematically, \(\partial h_v^{(K)} / \partial x_u\) decays exponentially with \(d(u,v)\), meaning distant signals vanish. This limits deep GNNs because stacking more layers doesn't help — the gradient signal from far nodes is destroyed.</div>
+
+  <div class="quiz-q">
+    <strong>Q2:</strong> Laplacian eigenvector PEs have sign ambiguity. Why is this a problem for learning?
+  </div>
+  <div class="fragment quiz-a">A: If \(\phi\) is an eigenvector, so is \(-\phi\). Two isomorphic substructures could receive opposite PE signs, making the model's learned function inconsistent. During training, the same structural role maps to different PE values across graphs, preventing stable learning. Solutions: use \(|\phi|\), SignNet, or switch to Random Walk PE (which has no ambiguity since probabilities are always positive).</div>
+
+  <div class="quiz-q">
+    <strong>Q3:</strong> In Graphormer, spatial encoding adds \(b_{\text{SPD}}(d(i,j))\) to attention. If nodes \(i,j\) are 5 hops apart and the learned bias table only has entries up to distance 3, what happens?
+  </div>
+  <div class="fragment quiz-a">A: Distances beyond the threshold are typically clipped or mapped to a single "far" bucket. So \(b_{\text{SPD}}(5)\) would use the same learned bias as all pairs with distance ≥ 3 (or whatever the cap is). This means the model treats all "distant enough" node pairs equally — losing fine-grained long-range distinctions.</div>
+</section>
+
+<!-- Quiz Slide 2 -->
+<section>
+  <h2>Quiz — Chapter 5 (continued)</h2>
+  <div class="quiz-q">
+    <strong>Q4:</strong> Why might a hybrid GNN+Transformer outperform a pure Graph Transformer on recommendation graphs?
+  </div>
+  <div class="fragment quiz-a">A: (1) The GNN component efficiently captures strong local collaborative signals (direct co-purchase, shared neighbors) which are the dominant signal in RecSys. (2) The Transformer adds long-range dependencies without requiring deep GNN stacks (avoids over-smoothing). (3) A pure Transformer with no structural bias wastes capacity re-learning locality from data. The hybrid gets locality "for free" from the GNN and uses transformer capacity for genuinely non-local patterns.</div>
+
+  <div class="quiz-q">
+    <strong>Q5:</strong> For a graph with 10M nodes, full self-attention requires \(O(10^{14})\) operations. Name two strategies to make this tractable.
+  </div>
+  <div class="fragment quiz-a">A: (1) <strong>Sparse attention</strong> — only attend to graph neighbors + sampled distant nodes, reducing to \(O(n \cdot k)\) where \(k \ll n\). (2) <strong>Linear attention (Performer)</strong> — approximate softmax with random feature maps: \(\text{softmax}(QK^T) \approx \phi(Q)\phi(K)^T\), reducing to \(O(n \cdot d^2)\). Other valid answers: cluster-based attention, node sampling, or restricting attention to local subgraphs.</div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>

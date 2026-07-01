@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 7: Knowledge Graphs and Structured Representations</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .msg-arrow { stroke: #f97316; stroke-width: 2; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+  <h1>Chapter 7</h1>
+  <h2>Knowledge Graphs &amp; Structured Representations</h2>
+  <p class="subtitle">KG structure, TransE/RotatE/ComplEx, KG-enhanced recommendations, hierarchical representations, KGTB, and cross-category signal propagation</p>
+</section>
+
+<!-- Slide 1: Beyond Interaction Graphs -->
+<section>
+  <h2>Beyond Interaction Graphs — Adding Semantics</h2>
+  <div class="two-col">
+    <div>
+      <h3>Interaction graph only knows:</h3>
+      <ul>
+        <li>"User A bought Item X"</li>
+        <li>No WHY, no properties, no relationships</li>
+      </ul>
+      <h3>Knowledge Graph adds:</h3>
+      <ul>
+        <li><strong>Attributes:</strong> brand, category, price tier</li>
+        <li><strong>Relations:</strong> belongs_to, compatible_with</li>
+        <li><strong>Hierarchies:</strong> category → subcategory → item</li>
+      </ul>
+    </div>
+    <div>
+      <svg width="260" height="200">
+        <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/></marker></defs>
+        <!-- Plain bipartite -->
+        <text x="60" y="15" style="fill:#8b949e;font-size:11px;text-anchor:middle">Interaction Only</text>
+        <circle cx="30" cy="50" r="10" style="fill:#a78bfa"/>
+        <circle cx="90" cy="50" r="10" style="fill:#a78bfa"/>
+        <circle cx="30" cy="100" r="10" style="fill:#4ade80"/>
+        <circle cx="90" cy="100" r="10" style="fill:#4ade80"/>
+        <line x1="30" y1="60" x2="30" y2="90" class="edge"/>
+        <line x1="30" y1="60" x2="90" y2="90" class="edge"/>
+        <line x1="90" y1="60" x2="90" y2="90" class="edge"/>
+        <!-- KG enriched -->
+        <text x="195" y="15" style="fill:#8b949e;font-size:11px;text-anchor:middle">With KG</text>
+        <circle cx="165" cy="50" r="10" style="fill:#a78bfa"/>
+        <circle cx="225" cy="50" r="10" style="fill:#a78bfa"/>
+        <circle cx="165" cy="100" r="10" style="fill:#4ade80"/>
+        <circle cx="225" cy="100" r="10" style="fill:#4ade80"/>
+        <circle cx="195" cy="150" r="8" style="fill:#f97316"/>
+        <circle cx="150" cy="150" r="8" style="fill:#58a6ff"/>
+        <circle cx="240" cy="150" r="8" style="fill:#58a6ff"/>
+        <line x1="165" y1="60" x2="165" y2="90" class="edge"/>
+        <line x1="225" y1="60" x2="225" y2="90" class="edge"/>
+        <line x1="165" y1="110" x2="150" y2="142" style="stroke:#f97316;stroke-width:1.5"/>
+        <line x1="165" y1="110" x2="195" y2="142" style="stroke:#f97316;stroke-width:1.5"/>
+        <line x1="225" y1="110" x2="195" y2="142" style="stroke:#f97316;stroke-width:1.5"/>
+        <line x1="225" y1="110" x2="240" y2="142" style="stroke:#f97316;stroke-width:1.5"/>
+        <text x="150" y="170" style="fill:#58a6ff;font-size:9px;text-anchor:middle">Apple</text>
+        <text x="195" y="170" style="fill:#f97316;font-size:9px;text-anchor:middle">Phone</text>
+        <text x="240" y="170" style="fill:#58a6ff;font-size:9px;text-anchor:middle">Premium</text>
+      </svg>
+    </div>
+  </div>
+  <div class="intuition">An interaction graph knows iPhone was purchased. A KG knows iPhone is a smartphone, made by Apple, in the premium segment, compatible with Lightning cables.</div>
+</section>
+
+<!-- Slide 2: Knowledge Graph Structure -->
+<section>
+  <h2>Knowledge Graph Structure</h2>
+  <div class="math-box">
+    <p><strong>Entities:</strong> items, categories, brands, attributes (nodes)</p>
+    <p><strong>Relations:</strong> typed edges — belongs_to, has_brand, has_price_tier, compatible_with</p>
+    <p><strong>Triples:</strong> \((h, r, t)\) — e.g., (iPhone, has_brand, Apple)</p>
+    <br>
+    <p><strong>Formal definition:</strong></p>
+    \[ \mathcal{KG} = \{(h, r, t) \;|\; h, t \in \mathcal{E},\; r \in \mathcal{R}\} \]
+  </div>
+  <h3>Scale Example:</h3>
+  <table>
+    <tr><th>Entity Type</th><th>Count</th><th>Examples</th></tr>
+    <tr><td>Items</td><td>3.9M</td><td>iPhone 15, Galaxy S24, Pixel 8</td></tr>
+    <tr><td>Categories</td><td>14</td><td>Smartphones, Tablets, Accessories</td></tr>
+    <tr><td>Brands</td><td>~500</td><td>Apple, Samsung, Google</td></tr>
+    <tr><td>Price Tiers</td><td>5</td><td>Budget, Mid, Premium, Ultra, Luxury</td></tr>
+  </table>
+  <svg width="400" height="120">
+    <!-- iPhone subgraph -->
+    <circle cx="200" cy="60" r="16" style="fill:#4ade80"/>
+    <text x="200" y="64" class="label" style="font-size:10px">iPhone</text>
+    <circle cx="80" cy="40" r="12" style="fill:#58a6ff"/>
+    <text x="80" y="44" class="label" style="font-size:9px">Apple</text>
+    <circle cx="80" cy="90" r="12" style="fill:#f97316"/>
+    <text x="80" y="94" class="label" style="font-size:9px">Phone</text>
+    <circle cx="320" cy="40" r="12" style="fill:#a78bfa"/>
+    <text x="320" y="44" class="label" style="font-size:9px">Premium</text>
+    <circle cx="320" cy="90" r="12" style="fill:#eab308"/>
+    <text x="320" y="94" class="label" style="font-size:9px">AirPods</text>
+    <line x1="184" y1="55" x2="92" y2="43" class="msg-arrow"/>
+    <line x1="184" y1="65" x2="92" y2="87" class="msg-arrow"/>
+    <line x1="216" y1="55" x2="308" y2="43" class="msg-arrow"/>
+    <line x1="216" y1="65" x2="308" y2="87" style="stroke:#4ade80;stroke-width:2;stroke-dasharray:4"/>
+    <text x="135" y="35" style="fill:#8b949e;font-size:9px">has_brand</text>
+    <text x="125" y="85" style="fill:#8b949e;font-size:9px">belongs_to</text>
+    <text x="255" y="35" style="fill:#8b949e;font-size:9px">has_price</text>
+    <text x="255" y="85" style="fill:#8b949e;font-size:9px">compatible</text>
+  </svg>
+  <div class="intuition">A KG turns your catalog into a richly connected semantic network. Every product is described not just by its ID, but by its place in the world of products.</div>
+</section>
+
+<!-- Slide 3: KG Embeddings — TransE, RotatE, ComplEx -->
+<section>
+  <h2>KG Embeddings — TransE, RotatE, ComplEx</h2>
+  <div class="step">Goal: embed entities and relations in vector space such that \(\mathbf{h} + \mathbf{r} \approx \mathbf{t}\)</div>
+  <div class="math-box">
+    <p><strong>TransE</strong> (Bordes et al., 2013):</p>
+    \[ f(h,r,t) = -\|\mathbf{h} + \mathbf{r} - \mathbf{t}\|_{L_1/L_2} \]
+    <p style="font-size:0.85em">Intuition: relation \(\mathbf{r}\) translates head to tail in embedding space</p>
+    <p style="color:#f87171;font-size:0.85em">Limitation: cannot model 1-to-N relations (multiple tails for same head+relation)</p>
+    <br>
+    <p><strong>RotatE</strong> (Sun et al., 2019):</p>
+    \[ f(h,r,t) = -\|\mathbf{h} \circ \mathbf{r} - \mathbf{t}\| \quad \text{where } \mathbf{r} \in \mathbb{C},\; |r_i| = 1 \]
+    <p style="font-size:0.85em">Rotation in complex plane — models symmetry, antisymmetry, inversion, composition</p>
+    <br>
+    <p><strong>ComplEx</strong> (Trouillon et al., 2016):</p>
+    \[ f(h,r,t) = \text{Re}\!\left(\langle \mathbf{h}, \mathbf{r}, \bar{\mathbf{t}} \rangle\right) = \text{Re}\!\left(\sum_k h_k \cdot r_k \cdot \bar{t}_k\right) \]
+    <p style="font-size:0.85em">Hermitian dot product in complex space — handles antisymmetric relations</p>
+  </div>
+  <p style="font-size:0.85em"><strong>Training:</strong> contrastive learning — score true triples higher than corrupted ones (negative sampling)</p>
+</section>

@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 5: LLM Training Techniques for Generative Retrieval</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .msg-arrow { stroke: #f97316; stroke-width: 2; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+  <h1>Chapter 5</h1>
+  <h2>LLM Training Techniques Applied to<br>Generative Recommendation</h2>
+  <p class="subtitle">Teacher forcing, scheduled sampling, lookahead, RLHF, DPO, contrastive learning, distillation, LoRA, speculative decoding, and diffusion</p>
+</section>
+
+<!-- Slide 2: Why LLM Techniques Transfer -->
+<section>
+  <h2>Why LLM Techniques Transfer to GenRec</h2>
+  <div class="two-col">
+    <div>
+      <h3>Shared Foundation:</h3>
+      <p>GenRec = <strong>autoregressive token generation</strong></p>
+      <p>Same decoder architecture, same left-to-right factorization</p>
+      <h3>Shared Challenges:</h3>
+      <ul>
+        <li>Exposure bias (train vs inference mismatch)</li>
+        <li>Mode collapse (generating only popular items)</li>
+        <li>Reward optimization (aligning with user preferences)</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Key Difference:</h3>
+      <div class="step">LLMs: free-form text tokens (vocab ~50K)<br>
+      GenRec: <strong>discrete structured outputs</strong> — item tokens from a hierarchical codebook (vocab ~256 per level)</div>
+      <h3>Applicable Techniques:</h3>
+      <p>All of autoregressive training + alignment methods transfer directly</p>
+    </div>
+  </div>
+  <div class="intuition">If you can train GPT to generate coherent text, the same tricks help generate coherent item token sequences. The vocabulary is smaller but the structure is stricter.</div>
+</section>
+
+<!-- Slide 3: Teacher Forcing and Exposure Bias -->
+<section>
+  <h2>Teacher Forcing and Exposure Bias</h2>
+  <div class="math-box">
+    <p><strong>Teacher Forcing Loss:</strong></p>
+    \[ \mathcal{L} = -\sum_{t=1}^{K} \log P(c_t \mid c_1, \ldots, c_{t-1}, \text{ctx}) \]
+    <p>At training: condition on <strong>ground-truth</strong> prefix \(c_1, \ldots, c_{t-1}\)</p>
+  </div>
+  <div class="step">
+    <strong>The Problem at Inference:</strong><br>
+    Model feeds its own predictions — never saw its own mistakes during training!
+  </div>
+  <h3>Exposure Bias in GenRec:</h3>
+  <ul>
+    <li>If L1 prediction is <strong>wrong</strong>, all subsequent levels drift</li>
+    <li>Model never practiced recovering from errors at upper levels</li>
+    <li>Compounding: error at level \(k\) propagates to levels \(k+1, \ldots, K\)</li>
+  </ul>
+  <div class="intuition">It's like learning to drive only on a rail track, then being thrown onto open roads. Teacher forcing never lets the model experience its own imperfect decisions.</div>
+</section>
+
+<!-- Slide 4: Scheduled Sampling -->
+<section>
+  <h2>Scheduled Sampling</h2>
+  <h3>Idea: gradually replace ground-truth with model's own predictions</h3>
+  <div class="math-box">
+    <p>At step \(t\), use:</p>
+    \[ c_t^{\text{input}} = \begin{cases} c_t^{\text{true}} & \text{with prob } (1 - \varepsilon_t) \\ \arg\max P(c_t \mid \ldots) & \text{with prob } \varepsilon_t \end{cases} \]
+    <p><strong>Schedule:</strong> \(\varepsilon_t\) increases from \(0 \to \varepsilon_{\max}\) over training</p>
+  </div>
+  <div class="two-col">
+    <div>
+      <h3>Curriculum:</h3>
+      <div class="step">Early training: stable (teacher forcing, ε≈0)</div>
+      <div class="step">Late training: realistic (self-feeding, ε≈0.3-0.5)</div>
+    </div>
+    <div>
+      <h3>Benefits &amp; Limitations:</h3>
+      <ul>
+        <li>✓ Bridges train-test distribution gap</li>
+        <li>✓ Model practices error recovery</li>
+        <li>✗ Too aggressive schedule → training instability</li>
+        <li>✗ Argmax may still differ from sampling at inference</li>
+      </ul>
+    </div>
+  </div>
+  <div class="intuition">Scheduled sampling is like training wheels — you remove them gradually so the model learns to balance on its own before you let go completely.</div>
+</section>
+
+<!-- Slide 5: Multi-Token Lookahead -->
+<section>
+  <h2>Multi-Token Lookahead Training</h2>
+  <h3>Problem: autoregressive loss only optimizes "next token" — no long-range planning</h3>
+  <div class="math-box">
+    <p><strong>Solution:</strong> Auxiliary heads predict <strong>downstream</strong> tokens from <strong>earlier</strong> hidden states</p>
+    <p><strong>Lookahead pairs:</strong> (L1→L4), (L1→L6), (L3→L6), (L1→L7a)</p>
+    <br>
+    <p><strong>Total Loss:</strong></p>
+    \[ \mathcal{L}_{\text{total}} = \mathcal{L}_{\text{main}} + \lambda \cdot \sum_{(\text{src}, \text{tgt})} \text{CE}\!\left(\text{head}_{\text{tgt}}(h_{\text{src}}),\; c_{\text{tgt}}\right) \]
+    <p>where \(\lambda = 0.3\) (auxiliary loss weight)</p>
+  </div>
+  <div class="step">
+    <strong>Effect:</strong> Early tokens are forced to "plan ahead" for later levels.<br>
+    The hidden state at L1 must encode enough information to predict L4, L6, etc.
+  </div>
+  <div class="intuition">Like a chess player thinking several moves ahead — the model at level 1 must already contain a "plan" for what tokens will come at levels 4, 6, 7. This reduces compounding errors.</div>
+</section>
+
+<!-- Slide 6: Causal Pre-Training (GPT-style) -->
+<section>
+  <h2>Causal Pre-Training (GPT-style)</h2>
+  <div class="two-col">
+    <div>
+      <h3>Phase 1: Pre-train</h3>
+      <div class="step">Objective: next-item-token prediction on ALL user histories (self-supervised)</div>
+      <ul>
+        <li>Large item sequence corpus</li>
+        <li>Learns item co-occurrence patterns</li>
+        <li>Learns token transition probabilities</li>
+        <li>No labels needed</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Phase 2: Fine-tune</h3>
+      <div class="step">Task-specific objective with purchase/conversion labels</div>
+      <ul>
+        <li>Smaller supervised dataset</li>
+        <li>Alignment to business metrics</li>
+        <li>Fewer epochs needed (pre-trained representations)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="math-box">
+    <p><strong>Connection to GPT paradigm:</strong></p>
+    <p>Internet text → task fine-tuning &nbsp; ⟺ &nbsp; All sequences → recommendation fine-tuning</p>
+  </div>
+  <div class="intuition">Pre-training on all interaction sequences is the "unsupervised internet" of recommendations — the model learns what items tend to follow what, before being told what's actually good.</div>
+</section>
+
+<!-- Slide 7: RLHF / Reward Modeling -->
+<section>
+  <h2>RLHF / Reward Modeling for Recommendations</h2>
+  <div class="math-box">
+    <p><strong>Standard RLHF Pipeline:</strong></p>
+    <p>SFT → Reward Model → PPO</p>
+  </div>
+  <div class="two-col">
+    <div>
+      <h3>Mapping to GenRec:</h3>
+      <div class="step"><strong>SFT</strong> = pre-train with teacher forcing on interaction sequences</div>
+      <div class="step"><strong>Reward</strong> = purchase / conversion / engagement signal</div>
+      <div class="step"><strong>PPO</strong> = optimize generation policy toward high-reward items</div>
+    </div>
+    <div>
+      <h3>Challenges:</h3>
+      <ul>
+        <li><strong>Sparse reward:</strong> only know if user bought, not full preference ordering</li>
+        <li><strong>Dense alternative:</strong> use CTR/CVR model as reward model</li>
+        <li><strong>Reward hacking:</strong> model learns to generate only popular items</li>
+        <li><strong>Instability:</strong> PPO training is notoriously unstable</li>
+      </ul>
+    </div>
+  </div>
+  <div class="intuition">RLHF says "generate item sequences that humans would actually buy." The challenge: purchase signal is binary and sparse, making reward modeling much harder than in text generation.</div>
+</section>
+
+<!-- Slide 8: DPO -->
+<section>
+  <h2>DPO — Direct Preference Optimization</h2>
+  <p style="color:#8b949e">Rafailov et al., 2023 — Eliminates the reward model entirely</p>
+  <div class="math-box">
+    <p><strong>DPO Loss:</strong></p>
+    \[ \mathcal{L}_{\text{DPO}} = -\log \sigma\!\left( \beta \left[ \log \frac{\pi_\theta(y_w|x)}{\pi_{\text{ref}}(y_w|x)} - \log \frac{\pi_\theta(y_l|x)}{\pi_{\text{ref}}(y_l|x)} \right] \right) \]
+    <p>\(y_w\) = purchased item tokens (winner) &nbsp; | &nbsp; \(y_l\) = explored-but-not-purchased (loser)</p>
+    <p>\(\pi_{\text{ref}}\) = pre-trained model (frozen reference) &nbsp; | &nbsp; \(\beta\) = KL penalty strength</p>
+  </div>
+  <div class="two-col">
+    <div>
+      <h3>Two-Phase Training:</h3>
+      <div class="step"><strong>Phase 1:</strong> Pre-train with CE loss → π<sub>ref</sub></div>
+      <div class="step"><strong>Phase 2:</strong> DPO fine-tune on preference pairs</div>
+    </div>
+    <div>
+      <h3>Why DPO for GenRec:</h3>
+      <ul>
+        <li>No reward model instability</li>
+        <li>Natural preference pairs from logs</li>
+        <li>Shifts generation toward purchases</li>
+      </ul>
+    </div>
+  </div>
+  <div class="intuition">DPO: "Make the model more likely to generate items users bought, and less likely to generate items they saw but skipped." No reward model needed — just A/B comparison.</div>
+</section>
+
+<!-- Slide 9: Contrastive Learning (InfoNCE) -->
+<section>
+  <h2>Contrastive Learning &amp; InfoNCE</h2>
+  <div class="math-box">
+    <p><strong>InfoNCE Loss (in-batch contrastive):</strong></p>
+    \[ \mathcal{L}_{\text{contrast}} = -\log \frac{\exp(h \cdot e_{\text{pos}} / \tau)}{\sum_{k=1}^{B} \exp(h \cdot e_k / \tau)} \]
+    <p>\(h\) = decoder hidden state at end of generation</p>
+    <p>\(e_{\text{pos}}\) = correct item embedding &nbsp; | &nbsp; \(e_k\) = all items in batch (negatives)</p>
+    <p>\(\tau\) = temperature (low → hard negatives focus, high → smooth gradients)</p>
+  </div>
+  <div class="two-col">
+    <div>
+      <h3>Purpose:</h3>
+      <p>Discriminative signal for <strong>collision resolution</strong></p>
+      <p>Multiple items may share token prefixes — contrastive loss helps disambiguate</p>
+    </div>
+    <div>
+      <h3>Complementary Roles:</h3>
+      <div class="step"><strong>Generation loss</strong> = recall (produce valid sequences)</div>
+      <div class="step"><strong>Contrastive loss</strong> = precision (pick the RIGHT item)</div>
+    </div>
+  </div>
+  <div class="intuition">Generation tells the model "produce valid token sequences." Contrastive learning says "among all valid sequences, make sure you're pointing at the specific item the user wants."</div>
+</section>
+
+<!-- Slide 10: Knowledge Distillation -->
+<section>
+  <h2>Knowledge Distillation</h2>
+  <h3>Transfer knowledge from a powerful teacher to an efficient student</h3>
+  <div class="math-box">
+    <p><strong>Distillation Loss:</strong></p>
+    \[ \mathcal{L}_{\text{KD}} = \text{KL}(P_{\text{teacher}} \,\|\, P_{\text{student}}) = \sum_c P_T(c) \log \frac{P_T(c)}{P_S(c)} \]
+    <p>Student learns to match the teacher's <strong>full distribution</strong> over tokens (soft targets)</p>
+  </div>
+  <div class="two-col">
+    <div>
+      <h3>Teacher Options:</h3>
+      <ul>
+        <li>Large pre-trained LLM</li>
+        <li>Ensemble of models</li>
+        <li><strong>SASRec</strong> (discriminative) as teacher</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Benefit:</h3>
+      <p>Transfers knowledge from a model that <em>"knows the right answer"</em> to one that <em>"generates the right answer"</em></p>
+      <p>Soft targets contain richer signal than hard labels (dark knowledge)</p>
+    </div>
+  </div>
+  <div class="intuition">A discriminative model can tell you the probability of every item being correct. Distillation transfers that "ranking wisdom" into a generative model that must produce tokens one by one.</div>
+</section>
+
+<!-- Slide 11: Curriculum Learning -->
+<section>
+  <h2>Curriculum Learning &amp; Data Ordering</h2>
+  <h3>Idea: order training examples from easy → hard</h3>
+  <div class="two-col">
+    <div>
+      <h3>Difficulty Dimensions:</h3>
+      <table>
+        <tr><th>Easy</th><th>Hard</th></tr>
+        <tr><td>Short history</td><td>Long history</td></tr>
+        <tr><td>Popular items</td><td>Tail items</td></tr>
+        <tr><td>Clear patterns</td><td>Ambiguous intent</td></tr>
+        <tr><td>High purchase rate</td><td>Exploratory sessions</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Schedule:</h3>
+      <div class="step">Epochs 1-N: train on easy sequences (high purchase rate, popular items)</div>
+      <div class="step">Epochs N+1: gradually introduce hard examples (tail items, long sessions)</div>
+      <h3>Connection to Graph Methods:</h3>
+      <p>Same principle as negative sampling curriculum — start with easy negatives, add hard negatives later</p>
+    </div>
+  </div>
+  <div class="intuition">You don't teach calculus on day one. Similarly, let the model master high-confidence patterns before challenging it with ambiguous tail-item sequences.</div>
+</section>
+
+<!-- Slide 12: LoRA and PEFT -->
+<section>
+  <h2>LoRA &amp; Parameter-Efficient Fine-Tuning</h2>
+  <div class="math-box">
+    <p><strong>Core idea:</strong> Freeze base weights \(W\), learn low-rank update:</p>
+    \[ W' = W + \alpha \cdot A \cdot B \quad \text{where } A \in \mathbb{R}^{d \times r},\; B \in \mathbb{R}^{r \times d},\; r \ll d \]
+    <p>Typical \(r = 4\text{-}64\) vs \(d = 768\text{-}4096\)</p>
+    <p><strong>Parameters saved:</strong> from \(d^2\) → \(2 \cdot d \cdot r\) (e.g., 768² = 590K → 2×768×16 = 25K)</p>
+  </div>
+  <h3>Application in GenRec:</h3>
+  <div class="two-col">
+    <div>
+      <div class="step"><strong>Base model:</strong> pre-trained on full catalog</div>
+      <div class="step"><strong>LoRA adapters:</strong> per-marketplace, per-category, per-campaign</div>
+    </div>
+    <div>
+      <ul>
+        <li>One base model + small adapters for different contexts</li>
+        <li>Switch adapters at inference time (hot-swap)</li>
+        <li>Also applicable: adapter layers, prompt tuning, prefix tuning</li>
+      </ul>
+    </div>
+  </div>
+  <div class="intuition">LoRA says "the task-specific knowledge lives in a low-dimensional subspace." You don't need to retrain 100M parameters — just a 25K adapter captures the marketplace-specific behavior.</div>
+</section>
+
+<!-- Slide 13: Label Smoothing and Token Dropout -->
+<section>
+  <h2>Label Smoothing &amp; Token Dropout</h2>
+  <div class="two-col">
+    <div>
+      <h3>Label Smoothing:</h3>
+      <div class="math-box">
+        <p>Soften targets from one-hot:</p>
+        \[ y_{\text{smooth}} = (1-\varepsilon) \cdot \mathbf{1}_{\text{true}} + \frac{\varepsilon}{V-1} \cdot \mathbf{1}_{\text{others}} \]
+        <p>Typical \(\varepsilon = 0.1\)</p>
+      </div>
+      <ul>
+        <li>Prevents over-confidence on training tokens</li>
+        <li>Regularization that helps generalization</li>
+        <li>Especially helpful when token collisions exist</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Token Dropout:</h3>
+      <ul>
+        <li><strong>Input masking:</strong> randomly mask some history tokens during training</li>
+        <li>Forces robustness to incomplete history</li>
+        <li>Connection to BERT's MLM (but in decoder context)</li>
+      </ul>
+      <h3>Embedding Dropout:</h3>
+      <ul>
+        <li>Dropout on item embeddings during encoding</li>
+        <li>Prevents over-reliance on specific items</li>
+        <li>Typical rate: 0.1-0.3</li>
+      </ul>
+    </div>
+  </div>
+  <div class="intuition">Label smoothing says "don't be 100% sure about any single token — there might be valid alternatives." Token dropout says "don't rely on seeing every item in the history."</div>
+</section>
+
+<!-- Slide 14: Combining Techniques -->
+<section>
+  <h2>Combining Techniques — What Works Together</h2>
+  <table>
+    <tr><th>Technique</th><th>Addresses</th><th>Compatible with</th></tr>
+    <tr><td>Scheduled Sampling</td><td>Exposure bias</td><td>DPO, Lookahead</td></tr>
+    <tr><td>Lookahead</td><td>Error compounding</td><td>Scheduled Sampling, Contrastive</td></tr>
+    <tr><td>DPO</td><td>Alignment to purchases</td><td>Contrastive, LoRA</td></tr>
+    <tr><td>Contrastive</td><td>Collision disambiguation</td><td>Everything</td></tr>
+    <tr><td>Distillation</td><td>Efficiency</td><td>LoRA, Curriculum</td></tr>
+    <tr><td>Curriculum</td><td>Training stability</td><td>DPO (after easy phase)</td></tr>
+    <tr><td>LoRA</td><td>Multi-domain efficiency</td><td>Everything (applied last)</td></tr>
+    <tr><td>Speculative Decoding</td><td>Inference latency</td><td>Any trained model (post-hoc)</td></tr>
+    <tr><td>Diffusion Distillation</td><td>Parallel decoding</td><td>Distillation, LoRA</td></tr>
+  </table>
+  <div class="step"><strong>Recommended pipeline:</strong> Pre-train (CE + Contrastive) → Lookahead → DPO → LoRA (per-domain)</div>
+  <div class="step"><strong>Inference acceleration:</strong> Speculative decoding (lossless) or Diffusion distillation (lossy but faster)</div>
+  <div class="step" style="border-left-color:#f87171"><strong>Anti-patterns:</strong> DPO too early (unstable π<sub>ref</sub>), Curriculum + random augmentation (contradictory)</div>
+</section>
+
+<!-- Slide 15: Speculative Decoding -->
+<section>
+  <h2>Speculative Decoding for Fast Inference</h2>
+  <p style="color:#8b949e">Leviathan et al., 2023 — Use a small draft model to accelerate a large target model</p>
+  <div class="math-box">
+    <p><strong>Algorithm:</strong></p>
+    <p>1. <strong>Draft model</strong> (small, 2-layer transformer) proposes full sequence \([c_1, \ldots, c_K]\)</p>
+    <p>2. <strong>Target model</strong> verifies ALL tokens in a <strong>single parallel forward pass</strong></p>
+    <p>3. <strong>Accept</strong> token \(c_t\) with probability:</p>
+    \[ P_{\text{accept}}(c_t) = \min\!\left(1,\; \frac{P_{\text{target}}(c_t)}{P_{\text{draft}}(c_t)}\right) \]
+    <p>If rejected → resample from adjusted distribution and discard remaining draft tokens</p>
+  </div>
+  <div class="two-col">
+    <div>
+      <h3>Why it works for GenRec:</h3>
+      <ul>
+        <li>Upper levels (L1-L4) are <strong>highly predictable</strong></li>
+        <li>Draft model almost always correct there</li>
+        <li>Speedup concentrated in easy-to-predict levels</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Key Properties:</h3>
+      <div class="step">Speedup: <strong>2-4×</strong> for K=9 tokens</div>
+      <div class="step" style="border-left-color:#4ade80"><strong>NO quality loss</strong> — exact same output distribution as target model</div>
+    </div>
+  </div>
+  <div class="intuition">Speculative decoding is "optimistic parallelism" — guess the answer, then verify cheaply. For GenRec, upper tree levels are nearly deterministic, so the draft model's guesses are almost always accepted.</div>
+</section>
+
+<!-- Slide 16: Diffusion-Based Distillation -->
+<section>
+  <h2>Diffusion-Based Distillation for Parallel Decoding</h2>
+  <h3>Goal: generate ALL tokens simultaneously via iterative denoising</h3>
+  <div class="math-box">
+    <p><strong>Approach:</strong> Start from random/masked tokens → iteratively refine toward valid item tokens</p>
+    <p>Each denoising step refines <strong>ALL positions in parallel</strong></p>
+    <p>After \(T\) steps (\(T \ll K\)): clean token sequence emerges</p>
+  </div>
+  <div class="two-col">
+    <div>
+      <h3>Distillation Pipeline:</h3>
+      <div class="step">1. Train autoregressive teacher (high quality, slow)</div>
+      <div class="step">2. Train diffusion/masked student (parallel, fast)</div>
+      <div class="step">3. Student matches teacher via KL divergence</div>
+      <h3>Architecture Options:</h3>
+      <ul>
+        <li>Discrete diffusion (D3PM, Absorbing)</li>
+        <li>Continuous diffusion on embeddings → quantize</li>
+        <li>Masked parallel decoding (BERT-style)</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Performance:</h3>
+      <div class="step">Speedup: <strong>5-10×</strong> (T=3-5 steps vs K=9 sequential)</div>
+      <div class="step" style="border-left-color:#eab308">Quality: slight degradation (1-3% Recall drop)</div>
+      <h3>Why feasible for GenRec:</h3>
+      <p>Item tokens are <strong>SHORT sequences</strong> (K=4-9)</p>
+      <p>Parallel generation much more feasible than in long-form text (K=1000+)</p>
+      <p>Connection to MaskGIT / MDLM</p>
+    </div>
+  </div>
+  <div class="intuition">Instead of generating tokens left-to-right, diffusion generates them all at once and refines iteratively. Short sequences (K=4-9) make this practical — you can't diffuse a novel, but you can diffuse a 9-token item code.</div>
+</section>
+
+<!-- Slide 17: Alpha Sweep -->
+<section>
+  <h2>Alpha Sweep — Generation vs Discrimination Trade-off</h2>
+  <div class="math-box">
+    <p><strong>Combined scoring at inference:</strong></p>
+    \[ \text{score} = \alpha \cdot P_{\text{generation}}(y|x) + (1-\alpha) \cdot \text{ID\_head\_score}(y|x) \]
+  </div>
+  <div class="two-col">
+    <div>
+      <h3>Extreme Values:</h3>
+      <table>
+        <tr><th>α</th><th>Behavior</th></tr>
+        <tr><td>1.0</td><td>Pure generative (token probs only)</td></tr>
+        <tr><td>0.0</td><td>Pure discriminative (ID head only)</td></tr>
+        <tr><td><strong>0.3-0.5</strong></td><td><strong>Sweet spot</strong></td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Why the sweet spot works:</h3>
+      <div class="step"><strong>Generation</strong> provides diversity and novelty — explores the long tail</div>
+      <div class="step"><strong>ID head</strong> provides precision — confirms the generated item is correct</div>
+    </div>
+  </div>
+  <h3>Practical Sweep:</h3>
+  <ul>
+    <li>Evaluate Recall@K at α ∈ {0.0, 0.1, 0.2, ..., 1.0} on validation set</li>
+    <li>Typically: α=0.3-0.5 outperforms both endpoints by 5-15% relative</li>
+    <li>α can vary per domain (higher α for diverse categories, lower for head-heavy)</li>
+  </ul>
+  <div class="intuition">Generation and discrimination are complementary skills. The generation path says "these items are plausible completions," the ID head says "but THIS one is what the user actually wants." Mix them.</div>
+</section>
+
+<!-- Quiz Slide 1 -->
+<section>
+  <h2>Quiz — Chapter 5</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> What is "exposure bias" in autoregressive generation, and why is it particularly dangerous for GenRec's hierarchical tokens?
+  </div>
+  <div class="fragment quiz-a">A: Exposure bias is the mismatch between training (ground-truth prefix) and inference (model's own predictions as prefix). In GenRec, an error at level L1 propagates to ALL subsequent levels — the model has never practiced recovering from its own mistakes at upper hierarchy levels.</div>
+
+  <div class="quiz-q">
+    <strong>Q2:</strong> In DPO for GenRec, what constitutes a "winner" (y_w) and "loser" (y_l)? Why is DPO preferred over full RLHF?
+  </div>
+  <div class="fragment quiz-a">A: Winner = item tokens the user <strong>purchased</strong>. Loser = item tokens the user <strong>explored but didn't purchase</strong>. DPO is preferred because it eliminates the reward model (no instability from RM training, no reward hacking), directly optimizing from naturally-occurring preference pairs in logs.</div>
+
+  <div class="quiz-q">
+    <strong>Q3:</strong> Multi-token lookahead uses pairs like (L1→L4). What does this mean concretely, and what λ value is used?
+  </div>
+  <div class="fragment quiz-a">A: An auxiliary prediction head takes the hidden state at level 1 (h<sub>L1</sub>) and tries to predict the token at level 4 (c<sub>L4</sub>). This forces the L1 representation to "plan ahead." The auxiliary loss weight λ = 0.3 (30% of main loss magnitude).</div>
+
+  <div class="quiz-q">
+    <strong>Q4:</strong> In knowledge distillation for GenRec, why might a discriminative model (SASRec) make a good teacher for a generative student?
+  </div>
+  <div class="fragment quiz-a">A: SASRec scores ALL items simultaneously and produces a probability distribution over the catalog. This "soft target" distribution is richer than hard labels — it tells the generative student not just WHICH item is correct but how much probability mass each alternative deserves (dark knowledge).</div>
+</section>
+
+<!-- Quiz Slide 2 -->
+<section>
+  <h2>Quiz — Chapter 5 (continued)</h2>
+  <div class="quiz-q">
+    <strong>Q5:</strong> LoRA learns ΔW = A·B with rank r. If d=768 and r=16, how many parameters does the adapter have vs full fine-tuning?
+  </div>
+  <div class="fragment quiz-a">A: Full fine-tuning: d² = 768² = <strong>589,824</strong> parameters. LoRA adapter: 2×d×r = 2×768×16 = <strong>24,576</strong> parameters — a 24× reduction. This is per weight matrix (Q, K, V, etc.), so total savings are multiplicative across all layers.</div>
+
+  <div class="quiz-q">
+    <strong>Q6:</strong> Why does contrastive learning (InfoNCE) complement the generation loss? What does each address?
+  </div>
+  <div class="fragment quiz-a">A: Generation loss optimizes <strong>recall</strong> — producing valid token sequences. Contrastive loss optimizes <strong>precision</strong> — disambiguating between items that share token prefixes (collisions). Together: the model generates valid sequences AND points to the correct specific item.</div>
+
+  <div class="quiz-q">
+    <strong>Q7:</strong> Speculative decoding gives 2-4× speedup with NO quality loss. What is the acceptance criterion for a draft token?
+  </div>
+  <div class="fragment quiz-a">A: Accept draft token c<sub>t</sub> with probability min(1, P<sub>target</sub>(c<sub>t</sub>) / P<sub>draft</sub>(c<sub>t</sub>)). If the target model assigns HIGHER probability than the draft model → always accept. If lower → accept proportionally. This guarantees the final distribution exactly matches the target model.</div>
+
+  <div class="quiz-q">
+    <strong>Q8:</strong> Diffusion-based distillation offers 5-10× speedup but with slight quality loss. Why is this approach particularly feasible for GenRec but not for general text generation?
+  </div>
+  <div class="fragment quiz-a">A: GenRec item tokens are <strong>SHORT sequences</strong> (K=4-9 tokens). Parallel generation via diffusion/denoising is much more feasible for short sequences because: (1) fewer denoising steps needed, (2) inter-token dependencies are shorter-range, (3) 3-5 refinement iterations can cover K=9 positions. For text (K=1000+), diffusion quality degrades significantly.</div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>

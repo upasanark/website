@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 6: Scaling Graph Methods — MapReduce &amp; Distributed Computing</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+  .msg-arrow { stroke: #f97316; stroke-width: 2; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+  <h1>Chapter 6</h1>
+  <h2>Scaling Graph Methods: MapReduce &amp; Distributed Computing</h2>
+  <p class="subtitle">Graph partitioning, edge-wise propagation, Spark/PySpark, distributed FAISS, EMR configuration, and production challenges</p>
+</section>
+
+<!-- Slide 1: The Scale Challenge -->
+<section>
+  <h2>The Scale Challenge</h2>
+  <div class="two-col">
+    <div>
+      <h3>Production Numbers:</h3>
+      <table>
+        <tr><th>Dimension</th><th>Scale</th></tr>
+        <tr><td>Users (CLP)</td><td>28M</td></tr>
+        <tr><td>Users (Bestsellers)</td><td>150M</td></tr>
+        <tr><td>Items</td><td>3.9M ASINs</td></tr>
+        <tr><td>Edges</td><td>423M interactions</td></tr>
+        <tr><td>Embedding dims</td><td>18–256</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Memory Reality:</h3>
+      <div class="math-box">
+        <p><strong>Full adjacency:</strong></p>
+        <p>\(28\text{M} \times 3.9\text{M} \times 4\text{B} = 437\text{ TB}\)</p>
+        <p style="color:#f87171">← Impossible</p>
+        <br>
+        <p><strong>Sparse representation:</strong></p>
+        <p>\(423\text{M edges} \times 12\text{B} = 5\text{ GB}\)</p>
+        <p style="color:#4ade80">← Feasible</p>
+      </div>
+    </div>
+  </div>
+  <div class="step">But: propagation requires matrix multiplication across the graph → still needs distribution</div>
+  <div class="intuition">The graph fits in memory. The computation doesn't.</div>
+</section>
+
+<!-- Slide 2: Graph Partitioning Strategies -->
+<section>
+  <h2>Graph Partitioning Strategies</h2>
+  <div class="two-col">
+    <div>
+      <svg width="320" height="220">
+        <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/></marker></defs>
+        <!-- Edge-cut partition -->
+        <text x="80" y="15" style="fill:#58a6ff;font-size:11px;text-anchor:middle">Edge-Cut</text>
+        <rect x="10" y="20" width="60" height="70" style="fill:none;stroke:#58a6ff;stroke-width:1;stroke-dasharray:3"/>
+        <rect x="80" y="20" width="60" height="70" style="fill:none;stroke:#4ade80;stroke-width:1;stroke-dasharray:3"/>
+        <circle cx="30" cy="45" r="8" style="fill:#58a6ff"/>
+        <circle cx="55" cy="65" r="8" style="fill:#58a6ff"/>
+        <circle cx="100" cy="45" r="8" style="fill:#4ade80"/>
+        <circle cx="120" cy="70" r="8" style="fill:#4ade80"/>
+        <line x1="55" y1="65" x2="100" y2="45" style="stroke:#f87171;stroke-width:2;stroke-dasharray:4"/>
+        <line x1="30" y1="45" x2="55" y2="65" class="edge"/>
+        <line x1="100" y1="45" x2="120" y2="70" class="edge"/>
+        <text x="77" y="55" style="fill:#f87171;font-size:9px;text-anchor:middle">✂</text>
+        <!-- Vertex-cut partition -->
+        <text x="80" y="115" style="fill:#58a6ff;font-size:11px;text-anchor:middle">Vertex-Cut</text>
+        <rect x="10" y="120" width="60" height="70" style="fill:none;stroke:#58a6ff;stroke-width:1;stroke-dasharray:3"/>
+        <rect x="80" y="120" width="60" height="70" style="fill:none;stroke:#4ade80;stroke-width:1;stroke-dasharray:3"/>
+        <circle cx="30" cy="150" r="8" style="fill:#58a6ff"/>
+        <circle cx="55" cy="165" r="8" style="fill:#a78bfa"/>
+        <circle cx="100" cy="145" r="8" style="fill:#4ade80"/>
+        <circle cx="95" cy="170" r="8" style="fill:#a78bfa"/>
+        <line x1="30" y1="150" x2="55" y2="165" class="edge"/>
+        <line x1="95" y1="170" x2="100" y2="145" class="edge"/>
+        <text x="75" y="210" style="fill:#a78bfa;font-size:9px;text-anchor:middle">replicated node</text>
+        <!-- Hash partition -->
+        <text x="240" y="15" style="fill:#58a6ff;font-size:11px;text-anchor:middle">Hash-Based</text>
+        <rect x="180" y="20" width="50" height="70" style="fill:none;stroke:#58a6ff;stroke-width:1;stroke-dasharray:3"/>
+        <rect x="240" y="20" width="50" height="70" style="fill:none;stroke:#4ade80;stroke-width:1;stroke-dasharray:3"/>
+        <circle cx="200" cy="40" r="8" style="fill:#58a6ff"/>
+        <circle cx="210" cy="65" r="8" style="fill:#58a6ff"/>
+        <circle cx="255" cy="50" r="8" style="fill:#4ade80"/>
+        <circle cx="270" cy="75" r="8" style="fill:#4ade80"/>
+        <line x1="210" y1="65" x2="255" y2="50" style="stroke:#888;stroke-width:1;stroke-dasharray:2"/>
+        <line x1="200" y1="40" x2="270" y2="75" style="stroke:#888;stroke-width:1;stroke-dasharray:2"/>
+        <text x="240" y="105" style="fill:#8b949e;font-size:9px;text-anchor:middle">hash(id) % P</text>
+      </svg>
+    </div>
+    <div>
+      <table>
+        <tr><th>Strategy</th><th>Pros</th><th>Cons</th></tr>
+        <tr><td>Edge-cut</td><td>Min communication</td><td>Hotspot nodes</td></tr>
+        <tr><td>Vertex-cut</td><td>Power-law friendly</td><td>Node replication</td></tr>
+        <tr><td>Hash</td><td>Simple, balanced</td><td>No locality</td></tr>
+      </table>
+      <div class="step">Recommendation: <strong>Vertex-cut</strong> for power-law interaction graphs (most real-world recommendation graphs)</div>
+    </div>
+  </div>
+  <div class="intuition">Power-law graphs have "celebrity" nodes with millions of edges. Vertex-cut replicates these nodes rather than creating a single overloaded partition.</div>
+</section>
+
+<!-- Slide 3: MapReduce for Graph Propagation -->
+<section>
+  <h2>MapReduce for Graph Propagation</h2>
+  <div class="step"><strong>Core insight:</strong> Message passing on graphs = Map + Reduce</div>
+  <div class="math-box">
+    <p><strong>Map phase</strong> — for each edge \((u, i)\), emit:</p>
+    \[ \text{emit}\bigl(i,\; w_{ui} \cdot \mathbf{e}_u\bigr) \]
+    <p><strong>Reduce phase</strong> — for each node \(i\), aggregate incoming messages:</p>
+    \[ \mathbf{e}_i^{\text{new}} = \text{normalize}\!\left(\sum_{\text{messages to } i} m_j\right) \]
+  </div>
+  <div class="math-box">
+    <p><strong>This exactly implements:</strong></p>
+    \[ \mathbf{e}_i^{(l+1)} = \sum_{j \in \mathcal{N}(i)} \frac{w_{ji}}{d_i} \cdot \mathbf{e}_j^{(l)} \]
+  </div>
+  <svg width="500" height="100">
+    <!-- Map phase -->
+    <rect x="10" y="10" width="150" height="80" rx="6" style="fill:#21262d;stroke:#f97316;stroke-width:1"/>
+    <text x="85" y="30" style="fill:#f97316;font-size:12px;text-anchor:middle;font-weight:bold">MAP</text>
+    <text x="85" y="50" style="fill:#ccc;font-size:10px;text-anchor:middle">For each edge (u,i):</text>
+    <text x="85" y="65" style="fill:#ccc;font-size:10px;text-anchor:middle">emit(i, w·e_u)</text>
+    <!-- Arrow -->
+    <line x1="165" y1="50" x2="210" y2="50" class="msg-arrow"/>
+    <text x="187" y="42" style="fill:#8b949e;font-size:9px;text-anchor:middle">shuffle</text>
+    <!-- Reduce phase -->
+    <rect x="215" y="10" width="150" height="80" rx="6" style="fill:#21262d;stroke:#4ade80;stroke-width:1"/>
+    <text x="290" y="30" style="fill:#4ade80;font-size:12px;text-anchor:middle;font-weight:bold">REDUCE</text>
+    <text x="290" y="50" style="fill:#ccc;font-size:10px;text-anchor:middle">For each node i:</text>
+    <text x="290" y="65" style="fill:#ccc;font-size:10px;text-anchor:middle">e_i = norm(Σ messages)</text>
+    <!-- Arrow to output -->
+    <line x1="370" y1="50" x2="415" y2="50" class="msg-arrow"/>
+    <!-- Output -->
+    <rect x="420" y="20" width="70" height="60" rx="6" style="fill:#1a3d2a;stroke:#4ade80;stroke-width:1"/>
+    <text x="455" y="50" style="fill:#4ade80;font-size:10px;text-anchor:middle">New</text>
+    <text x="455" y="63" style="fill:#4ade80;font-size:10px;text-anchor:middle">Embeddings</text>
+  </svg>
+  <p style="font-size:0.85em"><strong>Multi-hop:</strong> chain K MapReduce jobs = K propagation layers</p>
+  <div class="intuition">One MapReduce job = one propagation layer. The shuffle phase groups all messages by destination node — exactly what aggregation needs.</div>
+</section>
+
+<!-- Slide 4: Edge-Wise Partitioning -->
+<section>
+  <h2>Edge-Wise Partitioning for Scalable Propagation</h2>
+  <div class="step">Strategy: partition <strong>edges</strong> (not nodes) across workers</div>
+  <div class="math-box">
+    <p><strong>Partition edges into P sets:</strong> \(\; E = E_1 \cup E_2 \cup \ldots \cup E_P\)</p>
+    <br>
+    <p><strong>Worker \(p\) computes partial aggregation:</strong></p>
+    \[ \text{partial}_i^{(p)} = \sum_{\substack{j:\; (j,i) \in E_p}} w_{ji} \cdot \mathbf{e}_j \]
+    <br>
+    <p><strong>Final merge:</strong></p>
+    \[ \mathbf{e}_i^{\text{new}} = \text{normalize}\!\left(\sum_{p=1}^{P} \text{partial}_i^{(p)}\right) \]
+  </div>
+  <div class="two-col">
+    <div>
+      <h3>Why this works:</h3>
+      <ul>
+        <li>Edges are <strong>independent</strong> during message phase</li>
+        <li>Addition is associative → partial sums are valid</li>
+        <li>Linear scaling with number of edges</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Production usage:</h3>
+      <ul>
+        <li>423M edges ÷ 30 executors</li>
+        <li>≈ 14M edges per worker</li>
+        <li>Partial sums merge at reduce step</li>
+      </ul>
+    </div>
+  </div>
+  <div class="intuition">Since summation is associative, we can split the sum across workers and combine later. Each worker handles its edge slice independently — embarrassingly parallel during the message phase.</div>
+</section>
+
+<!-- Slide 5: Spark/PySpark Implementation -->
+<section>
+  <h2>Spark/PySpark Implementation Pattern</h2>
+  <pre><code class="language-python"># One propagation layer in PySpark
+edges_df = spark.read.parquet("edges/")       # (src, dst, weight)
+embeddings_df = spark.read.parquet("embeddings/")  # (node_id, embedding)
+
+# MAP: join edges with source embeddings, compute messages
+messages = (edges_df
+    .join(embeddings_df, edges_df.src == embeddings_df.node_id)
+    .select("dst", (col("weight") * col("embedding")).alias("message"))
+)
+
+# REDUCE: aggregate messages at each destination
+new_embeddings = (messages
+    .groupBy("dst")
+    .agg(array_sum("message").alias("aggregated"))
+    .withColumn("embedding", normalize_udf("aggregated"))
+)</code></pre>
+  <h3>Key Optimizations:</h3>
+  <div class="two-col">
+    <div>
+      <div class="step"><strong>Broadcast</strong> small tables (item embeddings if |I| &lt; 10M rows)</div>
+      <div class="step"><strong>Repartition</strong> edges by destination for efficient reduce</div>
+    </div>
+    <div>
+      <div class="step"><strong>Cache</strong> intermediate DataFrames across propagation layers</div>
+      <div class="step"><strong>Coalesce</strong> output to avoid small-file problem</div>
+    </div>
+  </div>
+  <div class="intuition">The Spark DAG mirrors the mathematical formulation exactly: join = attach source embeddings, groupBy = aggregate by destination. The optimizer handles the parallelism.</div>
+</section>
+
+<!-- Slide 6: Distributed FAISS -->
+<section>
+  <h2>Distributed FAISS for Similarity Search</h2>
+  <div class="two-col">
+    <div>
+      <h3>The Problem:</h3>
+      <div class="math-box">
+        <p>150M users × 256 dims × 4 bytes</p>
+        <p>= <strong>153 GB</strong> of user embeddings</p>
+        <br>
+        <p>Need: top-K items for each user</p>
+        \[ \text{score}(u, i) = \frac{\mathbf{e}_u \cdot \mathbf{e}_i}{\|\mathbf{e}_u\| \cdot \|\mathbf{e}_i\|} \]
+      </div>
+      <h3>FAISS Index Types:</h3>
+      <table>
+        <tr><th>Index</th><th>Speed</th><th>Exactness</th></tr>
+        <tr><td>IndexFlatIP</td><td>Slow</td><td>Exact</td></tr>
+        <tr><td>IndexIVF</td><td>Fast</td><td>Approximate</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Distribution Strategy:</h3>
+      <svg width="220" height="200">
+        <!-- Item index (broadcast) -->
+        <rect x="70" y="5" width="100" height="35" rx="4" style="fill:#1a3d2a;stroke:#4ade80;stroke-width:1"/>
+        <text x="120" y="27" style="fill:#4ade80;font-size:10px;text-anchor:middle">Item Index (4K×256)</text>
+        <!-- Broadcast arrows -->
+        <line x1="95" y1="42" x2="45" y2="65" style="stroke:#4ade80;stroke-width:1;stroke-dasharray:3"/>
+        <line x1="120" y1="42" x2="120" y2="65" style="stroke:#4ade80;stroke-width:1;stroke-dasharray:3"/>
+        <line x1="145" y1="42" x2="195" y2="65" style="stroke:#4ade80;stroke-width:1;stroke-dasharray:3"/>
+        <text x="30" y="58" style="fill:#8b949e;font-size:8px">broadcast</text>
+        <!-- Workers -->
+        <rect x="10" y="68" width="65" height="50" rx="4" style="fill:#21262d;stroke:#58a6ff;stroke-width:1"/>
+        <text x="42" y="85" style="fill:#58a6ff;font-size:9px;text-anchor:middle">Worker 1</text>
+        <text x="42" y="100" style="fill:#ccc;font-size:8px;text-anchor:middle">50M users</text>
+        <rect x="85" y="68" width="65" height="50" rx="4" style="fill:#21262d;stroke:#58a6ff;stroke-width:1"/>
+        <text x="117" y="85" style="fill:#58a6ff;font-size:9px;text-anchor:middle">Worker 2</text>
+        <text x="117" y="100" style="fill:#ccc;font-size:8px;text-anchor:middle">50M users</text>
+        <rect x="160" y="68" width="65" height="50" rx="4" style="fill:#21262d;stroke:#58a6ff;stroke-width:1"/>
+        <text x="192" y="85" style="fill:#58a6ff;font-size:9px;text-anchor:middle">Worker 3</text>
+        <text x="192" y="100" style="fill:#ccc;font-size:8px;text-anchor:middle">50M users</text>
+        <!-- Results -->
+        <line x1="42" y1="120" x2="42" y2="145" style="stroke:#a78bfa;stroke-width:1"/>
+        <line x1="117" y1="120" x2="117" y2="145" style="stroke:#a78bfa;stroke-width:1"/>
+        <line x1="192" y1="120" x2="192" y2="145" style="stroke:#a78bfa;stroke-width:1"/>
+        <rect x="10" y="148" width="215" height="30" rx="4" style="fill:#2d1f3d;stroke:#a78bfa;stroke-width:1"/>
+        <text x="117" y="168" style="fill:#a78bfa;font-size:10px;text-anchor:middle">Collect top-K results per user</text>
+      </svg>
+    </div>
+  </div>
+  <div class="step">Performance: ~2,500–3,000 users/sec → ~60 min for 150M users on 30 executors</div>
+  <div class="intuition">Broadcast the small item index to every worker, partition users across workers. Each worker queries its user partition against the local copy of the index — zero network traffic during search.</div>
+</section>
+
+<!-- Slide 7: Memory Management and Broadcast Variables -->
+<section>
+  <h2>Memory Management &amp; Broadcast Variables</h2>
+  <div class="two-col">
+    <div>
+      <h3>What to Broadcast:</h3>
+      <table>
+        <tr><th>Data</th><th>Size</th></tr>
+        <tr><td>FAISS index (4K items × 256d)</td><td>~50 MB</td></tr>
+        <tr><td>Item metadata</td><td>~100 MB</td></tr>
+        <tr><td>Cluster assignments</td><td>~10 MB</td></tr>
+      </table>
+      <br>
+      <h3>Partition-Level Processing:</h3>
+      <div class="step">Rebuild index <strong>once per partition</strong>, process all rows in that partition</div>
+      <div class="step" style="border-left-color:#f87171"><strong>Anti-pattern:</strong> shipping large data per-row → serialization overhead kills performance</div>
+    </div>
+    <div>
+      <h3>Memory Budget per Executor (6–8 GB):</h3>
+      <svg width="200" height="180">
+        <!-- Memory stack -->
+        <rect x="20" y="10" width="160" height="40" rx="3" style="fill:#1a3d2a;stroke:#4ade80;stroke-width:1"/>
+        <text x="100" y="28" style="fill:#4ade80;font-size:10px;text-anchor:middle">Data Partitions</text>
+        <text x="100" y="42" style="fill:#8b949e;font-size:9px;text-anchor:middle">~4 GB</text>
+        <rect x="20" y="55" width="160" height="35" rx="3" style="fill:#1c3a5e;stroke:#58a6ff;stroke-width:1"/>
+        <text x="100" y="72" style="fill:#58a6ff;font-size:10px;text-anchor:middle">Broadcast Variables</text>
+        <text x="100" y="85" style="fill:#8b949e;font-size:9px;text-anchor:middle">~1 GB</text>
+        <rect x="20" y="95" width="160" height="35" rx="3" style="fill:#2d1f3d;stroke:#a78bfa;stroke-width:1"/>
+        <text x="100" y="112" style="fill:#a78bfa;font-size:10px;text-anchor:middle">Computation Overhead</text>
+        <text x="100" y="125" style="fill:#8b949e;font-size:9px;text-anchor:middle">~1–2 GB</text>
+        <rect x="20" y="135" width="160" height="30" rx="3" style="fill:#21262d;stroke:#555;stroke-width:1"/>
+        <text x="100" y="155" style="fill:#8b949e;font-size:10px;text-anchor:middle">Spark overhead ~1 GB</text>
+        <!-- Total label -->
+        <text x="100" y="178" style="fill:#fff;font-size:11px;text-anchor:middle;font-weight:bold">Total: 6–8 GB / executor</text>
+      </svg>
+    </div>
+  </div>
+  <div class="intuition">Broadcast once, use everywhere. The key insight: send the small table (items) to all workers rather than shuffling the large table (users) to one place.</div>
+</section>
+
+<!-- Slide 8: EMR Cluster Configuration -->
+<section>
+  <h2>EMR Cluster Configuration for Graph Workloads</h2>
+  <div class="two-col">
+    <div>
+      <h3>Cluster Sizing (150M users, 423M edges):</h3>
+      <table>
+        <tr><th>Role</th><th>Instance</th><th>RAM</th></tr>
+        <tr><td>Driver</td><td>r5.2xlarge</td><td>64 GB</td></tr>
+        <tr><td>Executors (×30)</td><td>r5.xlarge</td><td>32 GB each</td></tr>
+        <tr><td><strong>Total</strong></td><td></td><td><strong>~1 TB</strong></td></tr>
+      </table>
+      <h3>Key Spark Configs:</h3>
+      <pre><code class="language-bash">spark.executor.memory = 6g
+spark.sql.shuffle.partitions = 500
+spark.default.parallelism = 240
+# (8 cores × 30 executors)</code></pre>
+    </div>
+    <div>
+      <h3>Runtime Breakdown:</h3>
+      <table>
+        <tr><th>Stage</th><th>Time</th></tr>
+        <tr><td>Data loading</td><td>~5 min</td></tr>
+        <tr><td>Graph propagation (3 layers)</td><td>~30 min</td></tr>
+        <tr><td>FAISS retrieval</td><td>~20 min</td></tr>
+        <tr><td>Output writing</td><td>~5 min</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>~60 min</strong></td></tr>
+      </table>
+      <br>
+      <div class="step"><strong>Cost optimization:</strong> Spot instances for executors — 3× cheaper, can tolerate interruption with checkpointing</div>
+    </div>
+  </div>
+  <div class="intuition">The cluster is memory-optimized (r5 family) because graph propagation is memory-bound, not compute-bound. Spot instances make the 30-executor cluster affordable for daily runs.</div>
+</section>
+
+<!-- Slide 9: Practical Challenges — Data Skew and Shuffle -->
+<section>
+  <h2>Practical Challenges — Data Skew &amp; Shuffle</h2>
+  <h3>The Skew Problem:</h3>
+  <div class="step">Popular items have <strong>millions</strong> of edges (avg: 100). One reducer gets 10,000× more work.</div>
+  <div class="math-box">
+    <p><strong>Solution: Salting</strong> — two-stage aggregation</p>
+    <br>
+    <p><strong>Stage 1:</strong> partial_agg by \((\text{item\_id} \,\|\, \text{salt})\) where salt ∈ {0..S-1}</p>
+    <p>→ Distributes the hot key across S reducers</p>
+    <br>
+    <p><strong>Stage 2:</strong> final_agg by \(\text{item\_id}\) alone</p>
+    <p>→ Merges S partial results (now balanced)</p>
+  </div>
+  <h3>Other Strategies:</h3>
+  <div class="two-col">
+    <div>
+      <div class="step"><strong>Broadcast join:</strong> when one side &lt; 10 GB, avoid shuffle entirely</div>
+    </div>
+    <div>
+      <div class="step"><strong>Checkpointing:</strong> save every layer — if layer 3 fails, restart from layer 2 (not scratch)</div>
+    </div>
+  </div>
+  <pre><code class="language-python"># Salting example
+salted = edges.withColumn("salt", (rand() * NUM_SALTS).cast("int"))
+stage1 = salted.groupBy("dst", "salt").agg(sum_vectors("message"))
+stage2 = stage1.groupBy("dst").agg(sum_vectors("partial_sum"))</code></pre>
+  <div class="intuition">Data skew is the #1 production killer for graph workloads. Salting turns one overloaded reducer into S balanced reducers at the cost of one extra shuffle — almost always worth it.</div>
+</section>
+
+<!-- Slide 10: Summary -->
+<section>
+  <h2>Chapter 6 — Summary</h2>
+  <table>
+    <tr><th>Concept</th><th>Key Idea</th><th>Takeaway</th></tr>
+    <tr><td>Scale Challenge</td><td>Graph fits, computation doesn't</td><td>Must distribute propagation</td></tr>
+    <tr><td>Graph Partitioning</td><td>Edge-cut / Vertex-cut / Hash</td><td>Vertex-cut for power-law</td></tr>
+    <tr><td>MapReduce Propagation</td><td>Map = emit messages, Reduce = aggregate</td><td>One MR job = one layer</td></tr>
+    <tr><td>Edge-Wise Partition</td><td>Partition edges, merge partial sums</td><td>Linear scaling</td></tr>
+    <tr><td>Spark Pattern</td><td>Join → GroupBy → Normalize</td><td>Broadcast + Cache</td></tr>
+    <tr><td>Distributed FAISS</td><td>Broadcast index, partition users</td><td>Zero shuffle during search</td></tr>
+    <tr><td>Memory Mgmt</td><td>6–8 GB/executor budget</td><td>Broadcast small, partition large</td></tr>
+    <tr><td>EMR Config</td><td>30× r5.xlarge + spot</td><td>~60 min, cost-efficient</td></tr>
+    <tr><td>Data Skew</td><td>Salting + broadcast join</td><td>Two-stage aggregation</td></tr>
+  </table>
+  <div class="intuition">Next chapter: Knowledge Graphs and Structured Representations — moving beyond interaction data to incorporate item semantics, relations, and hierarchies.</div>
+</section>
+
+<!-- Quiz Slide 1 -->
+<section>
+  <h2>Quiz — Chapter 6</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> For a graph with 100M edges and 30 executors using edge-wise partitioning, how many edges does each executor process?
+  </div>
+  <div class="fragment quiz-a">A: 100M ÷ 30 ≈ <strong>3.33M edges per executor</strong>. Each worker computes partial aggregations for its edge subset, then partial results are merged per destination node.</div>
+
+  <div class="quiz-q">
+    <strong>Q2:</strong> Why broadcast the FAISS index instead of the user embeddings?
+  </div>
+  <div class="fragment quiz-a">A: The item index is <strong>small</strong> (~4K items × 256 dims = 50 MB) while user embeddings are <strong>huge</strong> (150M × 256 = 153 GB). Broadcasting the small side avoids shuffling the large side. Each worker queries its local users against the broadcast index with zero network traffic.</div>
+
+  <div class="quiz-q">
+    <strong>Q3:</strong> In MapReduce graph propagation, the Map phase emits (destination, message). What does the Reduce phase compute?
+  </div>
+  <div class="fragment quiz-a">A: The Reduce phase <strong>aggregates all incoming messages</strong> for each destination node: \(\mathbf{e}_i^{\text{new}} = \text{normalize}(\sum_j m_j)\). This implements the neighborhood aggregation step of propagation.</div>
+</section>
+
+<!-- Quiz Slide 2 -->
+<section>
+  <h2>Quiz — Chapter 6 (continued)</h2>
+  <div class="quiz-q">
+    <strong>Q4:</strong> A popular item has 5M incident edges while average items have 100. How does salting help?
+  </div>
+  <div class="fragment quiz-a">A: Without salting, <strong>one reducer</strong> handles all 5M edges for the popular item (50,000× slower than average). Salting with S=100 splits this into 100 partial aggregations of 50K edges each (balanced). A second stage merges the 100 partial results — now the max reducer load is only 500× not 50,000×.</div>
+
+  <div class="quiz-q">
+    <strong>Q5:</strong> You have 150M user embeddings × 256 dimensions in float32. How much storage is that?
+  </div>
+  <div class="fragment quiz-a">A: \(150\text{M} \times 256 \times 4\text{ bytes} = 150 \times 10^6 \times 1024\text{ bytes} \approx\) <strong>153 GB</strong>. This is why user embeddings must be partitioned across workers rather than fit in a single machine's memory.</div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>

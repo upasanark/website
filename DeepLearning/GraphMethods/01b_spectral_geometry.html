@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter 1b: Spectral and Geometric Intuitions on Graphs</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/night.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css">
+<style>
+  .reveal { font-size: 28px; }
+  .reveal h1 { font-size: 1.8em; color: #58a6ff; }
+  .reveal h2 { font-size: 1.4em; color: #79c0ff; }
+  .reveal h3 { font-size: 1.1em; color: #a5d6ff; }
+  .reveal .subtitle { font-size: 0.7em; color: #8b949e; margin-top: 0.5em; }
+  .reveal .intuition { background: #1c3a5e; padding: 15px; border-left: 4px solid #58a6ff; border-radius: 4px; margin: 15px 0; font-style: italic; }
+  .reveal .math-box { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+  .reveal .two-col { display: flex; gap: 40px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .quiz-q { background: #2d1f3d; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #a78bfa; }
+  .reveal .quiz-a { background: #1a3d2a; padding: 12px; border-radius: 6px; margin: 4px 0; border-left: 3px solid #4ade80; font-size: 0.85em; }
+  .reveal .step { background: #21262d; padding: 10px 15px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f97316; }
+  .reveal table { font-size: 0.8em; margin: 10px auto; }
+  .reveal th { background: #21262d; }
+  .reveal td, .reveal th { padding: 6px 12px; border: 1px solid #333; }
+  .reveal code { font-size: 0.85em; }
+  .node { stroke: #fff; stroke-width: 2; }
+  .edge { stroke: #555; stroke-width: 2; }
+  .label { fill: #fff; font-size: 14px; text-anchor: middle; }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+  <h1>Chapter 1b</h1>
+  <h2>Spectral &amp; Geometric Intuitions on Graphs</h2>
+  <p class="subtitle">The Laplacian in depth — eigenvalues as frequencies, graph Fourier transform, smoothness, clustering, and the bridge to GCN</p>
+</section>
+
+<!-- Slide 1: Why the Laplacian? -->
+<section>
+  <h2>Why Does the Laplacian Matter?</h2>
+  <div class="two-col">
+    <div>
+      <h3>In continuous math:</h3>
+      <p>The Laplacian \(\nabla^2 f\) measures how a function \(f\) at a point differs from its neighbors (average curvature).</p>
+      <p>Heat equation: \(\frac{\partial u}{\partial t} = \nabla^2 u\) — heat flows from hot to cold.</p>
+      <p>Fourier analysis: eigenfunctions of \(\nabla^2\) are sinusoids (frequency basis).</p>
+    </div>
+    <div>
+      <h3>On graphs:</h3>
+      <p>The graph Laplacian \(L\) is the <strong>discrete analog</strong>.</p>
+      <p>It measures how a signal at a node differs from its neighbors.</p>
+      <p>Eigenvectors of \(L\) = "graph sinusoids" (frequency basis for graphs).</p>
+      <p>This is the entire foundation of spectral GNNs.</p>
+    </div>
+  </div>
+  <div class="intuition">The Laplacian on images gives you edges (high-frequency change). The Laplacian on graphs gives you boundaries between communities. Same operator, different domain.</div>
+</section>
+
+<!-- Slide 2: The Laplacian as a Difference Operator -->
+<section>
+  <h2>The Laplacian as a Difference Operator</h2>
+  <div class="math-box">
+    <p>For a signal \(f\) defined on graph nodes, the Laplacian applied at node \(i\):</p>
+    \[ (Lf)_i = \sum_{j \in \mathcal{N}(i)} (f_i - f_j) = d_i \cdot f_i - \sum_{j \in \mathcal{N}(i)} f_j \]
+  </div>
+  <h3>Reading this:</h3>
+  <ul>
+    <li>\((Lf)_i = 0\): node \(i\)'s value equals its neighbors' average → <strong>locally smooth</strong></li>
+    <li>\((Lf)_i > 0\): node \(i\)'s value is higher than neighbors → <strong>local maximum</strong></li>
+    <li>\((Lf)_i < 0\): node \(i\)'s value is lower than neighbors → <strong>local minimum</strong></li>
+  </ul>
+  <div class="step">
+    <strong>Example:</strong> Temperature on a social network.<br>
+    If you have "opinion = 0.9" and all your friends have "opinion ≈ 0.3":<br>
+    \((Lf)_i = d_i(0.9) - d_i(0.3) = d_i \cdot 0.6 > 0\) → you're a local outlier (high Laplacian value)
+  </div>
+  <div class="intuition">The Laplacian measures disagreement between a node and its neighborhood. Low Laplacian = consensus. High Laplacian = tension.</div>
+</section>
+
+<!-- Slide 3: Quadratic Form — Total Smoothness -->
+<section>
+  <h2>The Quadratic Form — Measuring Total Smoothness</h2>
+  <div class="math-box">
+    <p><strong>The key identity:</strong></p>
+    \[ f^T L f = \sum_{(i,j) \in E} (f_i - f_j)^2 \]
+  </div>
+  <h3>What this tells us:</h3>
+  <ul>
+    <li>Sums the <strong>squared differences</strong> across all edges</li>
+    <li>\(f^T L f = 0\) iff \(f\) is constant on every connected component (perfectly smooth)</li>
+    <li>\(f^T L f\) large → signal changes rapidly across edges (high-frequency)</li>
+  </ul>
+  <div class="step">
+    <strong>Proof sketch:</strong><br>
+    \(f^T L f = f^T (D-A) f = f^T D f - f^T A f = \sum_i d_i f_i^2 - \sum_{(i,j)\in E} 2f_i f_j\)<br>
+    \(= \sum_{(i,j)\in E} (f_i^2 + f_j^2 - 2f_i f_j) = \sum_{(i,j)\in E} (f_i - f_j)^2\) ✓
+  </div>
+  <div class="intuition">This is why L is called a "smoothness operator." f^T L f gives you a single number: how much does the signal f vary across the graph? Low = smooth (like cluster labels). High = noisy (like random noise).</div>
+</section>
+
+<!-- Slide 4: Eigendecomposition of L -->
+<section>
+  <h2>Eigendecomposition — The Graph's "Frequency Basis"</h2>
+  <div class="math-box">
+    <p><strong>Eigendecomposition of the Laplacian:</strong></p>
+    \[ L = U \Lambda U^T \]
+    <p>\(U = [u_1, u_2, \ldots, u_n]\) — eigenvectors (orthonormal basis)</p>
+    <p>\(\Lambda = \text{diag}(\lambda_1, \lambda_2, \ldots, \lambda_n)\) — eigenvalues</p>
+    <p>\(0 = \lambda_1 \leq \lambda_2 \leq \ldots \leq \lambda_n\)</p>
+  </div>
+  <h3>The analogy to classical Fourier:</h3>
+  <table>
+    <tr><th>Continuous (signals)</th><th>Graphs</th></tr>
+    <tr><td>Domain: time/space</td><td>Domain: graph nodes</td></tr>
+    <tr><td>Frequency basis: sinusoids</td><td>Frequency basis: Laplacian eigenvectors \(u_k\)</td></tr>
+    <tr><td>Frequency: \(\omega\)</td><td>Frequency: eigenvalue \(\lambda_k\)</td></tr>
+    <tr><td>\(\nabla^2 \sin(\omega x) = -\omega^2 \sin(\omega x)\)</td><td>\(L u_k = \lambda_k u_k\)</td></tr>
+    <tr><td>Low freq: slowly varying</td><td>Low \(\lambda\): smooth on graph</td></tr>
+    <tr><td>High freq: rapidly oscillating</td><td>High \(\lambda\): rapid changes across edges</td></tr>
+  </table>
+  <div class="intuition">Eigenvectors of L are the "sinusoids" of the graph. Small eigenvalue = slow variation (smooth, captures communities). Large eigenvalue = rapid oscillation (captures boundaries).</div>
+</section>
+
+<!-- Slide 5: Visualizing Eigenvectors -->
+<section>
+  <h2>Visualizing Eigenvectors on a Graph</h2>
+  <div class="two-col">
+    <div>
+      <h3>\(u_1\): \(\lambda_1 = 0\) (constant)</h3>
+      <svg width="180" height="120">
+        <line x1="40" y1="60" x2="90" y2="30" class="edge"/>
+        <line x1="40" y1="60" x2="90" y2="90" class="edge"/>
+        <line x1="90" y1="30" x2="140" y2="60" class="edge"/>
+        <line x1="90" y1="90" x2="140" y2="60" class="edge"/>
+        <circle cx="40" cy="60" r="14" style="fill:#4ade80"/>
+        <circle cx="90" cy="30" r="14" style="fill:#4ade80"/>
+        <circle cx="90" cy="90" r="14" style="fill:#4ade80"/>
+        <circle cx="140" cy="60" r="14" style="fill:#4ade80"/>
+        <text x="90" y="115" style="fill:#8b949e;font-size:10px;text-anchor:middle">All same value → λ=0</text>
+      </svg>
+      <p style="font-size:0.8em">DC component: no variation at all.</p>
+    </div>
+    <div>
+      <h3>\(u_2\): \(\lambda_2\) (Fiedler vector)</h3>
+      <svg width="180" height="120">
+        <line x1="40" y1="60" x2="90" y2="30" class="edge"/>
+        <line x1="40" y1="60" x2="90" y2="90" class="edge"/>
+        <line x1="90" y1="30" x2="140" y2="60" class="edge"/>
+        <line x1="90" y1="90" x2="140" y2="60" class="edge"/>
+        <circle cx="40" cy="60" r="14" style="fill:#58a6ff"/>
+        <circle cx="90" cy="30" r="14" style="fill:#58a6ff"/>
+        <circle cx="90" cy="90" r="14" style="fill:#f87171"/>
+        <circle cx="140" cy="60" r="14" style="fill:#f87171"/>
+        <text x="90" y="115" style="fill:#8b949e;font-size:10px;text-anchor:middle">+/- split → graph bipartition</text>
+      </svg>
+      <p style="font-size:0.8em">Smoothest non-trivial signal: splits graph into 2 clusters.</p>
+    </div>
+  </div>
+  <div class="math-box">
+    <p><strong>Fiedler vector</strong> \(u_2\) (2nd eigenvector): the smoothest possible non-constant signal.</p>
+    <p>Sign of \(u_2(v)\) gives the optimal 2-way graph partition (spectral clustering).</p>
+    <p>\(\lambda_2\) = <strong>algebraic connectivity</strong>: how well-connected the graph is. \(\lambda_2 = 0\) iff disconnected.</p>
+  </div>
+  <div class="intuition">The Fiedler vector naturally finds communities! Nodes with similar eigenvector values are in the same cluster. This is exactly what spectral clustering does — and it's why GNNs can learn community structure.</div>
+</section>
+
+<!-- Slide 6: Graph Fourier Transform -->
+<section>
+  <h2>The Graph Fourier Transform</h2>
+  <div class="math-box">
+    <p><strong>Forward transform</strong> (decompose signal into graph frequencies):</p>
+    \[ \hat{f} = U^T f \]
+    <p>\(\hat{f}_k = u_k^T f\) = how much of eigenvector \(u_k\) (frequency \(\lambda_k\)) is in signal \(f\)</p>
+    <br>
+    <p><strong>Inverse transform</strong> (reconstruct from frequencies):</p>
+    \[ f = U \hat{f} = \sum_{k=1}^{n} \hat{f}_k \cdot u_k \]
+  </div>
+  <h3>What this means:</h3>
+  <ul>
+    <li>Any graph signal \(f\) can be decomposed into a sum of eigenvectors (graph frequencies)</li>
+    <li>\(\hat{f}_1\) = DC component (graph average)</li>
+    <li>\(\hat{f}_2\) = first oscillation (primary cluster structure)</li>
+    <li>\(\hat{f}_n\) = highest frequency (maximum variation between neighbors)</li>
+  </ul>
+  <div class="step">
+    <strong>Parseval's theorem on graphs:</strong> \(\|f\|^2 = \|\hat{f}\|^2\) — energy is preserved in the spectral domain.
+  </div>
+  <div class="intuition">Just like any audio signal is a sum of sinusoids (Fourier), any graph signal is a sum of eigenvectors. The Graph Fourier Transform lets us analyze and filter graph signals in the "frequency domain."</div>
+</section>
+
+<!-- Slide 7: Spectral Filtering — The Key to GCN -->
+<section>
+  <h2>Spectral Filtering — From Fourier to GCN</h2>
+  <div class="step">
+    <strong>On regular signals:</strong> convolution in time domain = multiplication in frequency domain<br>
+    \(\quad (f * g)(t) \;\longleftrightarrow\; \hat{f}(\omega) \cdot \hat{g}(\omega)\)
+  </div>
+  <div class="math-box">
+    <p><strong>On graphs:</strong> define convolution via the spectral domain:</p>
+    \[ (f *_G g_\theta) = U \left( (U^T f) \odot (U^T g_\theta) \right) = U \, g_\theta(\Lambda) \, U^T f \]
+    <p>where \(g_\theta(\Lambda) = \text{diag}(g_\theta(\lambda_1), \ldots, g_\theta(\lambda_n))\) is a <strong>spectral filter</strong></p>
+  </div>
+  <h3>What the filter does:</h3>
+  <table>
+    <tr><th>Filter type</th><th>\(g_\theta(\lambda)\)</th><th>Effect on graph signal</th></tr>
+    <tr><td>Low-pass</td><td>Large for small \(\lambda\), small for large</td><td>Keeps smooth (community) structure, removes noise</td></tr>
+    <tr><td>High-pass</td><td>Small for small \(\lambda\), large for large</td><td>Keeps edges/boundaries, removes background</td></tr>
+    <tr><td>Band-pass</td><td>Peaks at intermediate \(\lambda\)</td><td>Selects specific structural scale</td></tr>
+  </table>
+  <div class="intuition">GCN IS a low-pass filter on graphs. It smooths signals across neighborhoods — which is exactly "averaging your neighbors." The spectral theory tells us WHY averaging works: it keeps the low-frequency community structure while killing high-frequency noise.</div>
+</section>
+
+<!-- Slide 8: Why GCN = Low-Pass Filter -->
+<section>
+  <h2>GCN as a Low-Pass Filter — Formally</h2>
+  <div class="math-box">
+    <p>The normalized adjacency \(\hat{A} = D^{-1/2} A D^{-1/2}\) has eigenvalues in \([-1, 1]\)</p>
+    <p>Adding self-loops: \(\tilde{A} = A + I\) → \(\hat{\tilde{A}} = \tilde{D}^{-1/2}\tilde{A}\tilde{D}^{-1/2}\)</p>
+    <p>Eigenvalues of \(\hat{\tilde{A}}\): shifted to \([0, 1]\) → always positive, always \(\leq 1\)</p>
+    <br>
+    <p><strong>One GCN layer:</strong> \(\; h' = \hat{\tilde{A}} \, h\)</p>
+    <p>In spectral domain: \(\hat{h}' = (1 - \tilde{\lambda}_k) \cdot \hat{h}_k\) for each frequency \(k\)</p>
+  </div>
+  <h3>The low-pass behavior:</h3>
+  <ul>
+    <li>Low frequencies (\(\lambda_k\) small): multiplied by factor close to 1 → <strong>preserved</strong></li>
+    <li>High frequencies (\(\lambda_k\) large): multiplied by factor close to 0 → <strong>suppressed</strong></li>
+    <li>Repeated application (K layers): high frequencies suppressed exponentially → over-smoothing!</li>
+  </ul>
+  <div class="step">
+    <strong>K layers:</strong> factor becomes \((1-\tilde{\lambda}_k)^K\).<br>
+    If \(\tilde{\lambda}_k = 0.8\): after 1 layer → 0.2, after 3 layers → 0.008, after 5 layers → 0.00003 (gone!)
+  </div>
+  <div class="intuition">Over-smoothing explained spectrally: each GCN layer exponentially attenuates high-frequency (discriminative) signal. After 3-4 layers, only the DC component remains — all nodes look the same.</div>
+</section>
+
+<!-- Slide 9: Geometric Intuition — Graphs as Manifolds -->
+<section>
+  <h2>Geometric Intuition — Graphs as Discrete Manifolds</h2>
+  <div class="two-col">
+    <div>
+      <h3>The manifold hypothesis:</h3>
+      <p>Data lies on a low-dimensional manifold embedded in high-dimensional space.</p>
+      <p>A graph is a <strong>discrete approximation</strong> of this manifold:</p>
+      <ul>
+        <li>Nodes = sampled points on the manifold</li>
+        <li>Edges = local neighborhood connections</li>
+        <li>Edge weights = distance/similarity</li>
+      </ul>
+      <p>The Laplacian \(L\) approximates the <strong>Laplace-Beltrami operator</strong> on the manifold.</p>
+    </div>
+    <div>
+      <svg width="220" height="180">
+        <!-- Manifold (curved surface approximated by graph) -->
+        <path d="M 30 140 Q 60 40 110 80 Q 160 120 200 60" style="fill:none;stroke:#58a6ff;stroke-width:2;stroke-dasharray:4"/>
+        <!-- Sampled points (nodes) -->
+        <circle cx="40" cy="125" r="6" style="fill:#4ade80"/>
+        <circle cx="65" cy="75" r="6" style="fill:#4ade80"/>
+        <circle cx="90" cy="80" r="6" style="fill:#4ade80"/>
+        <circle cx="120" cy="90" r="6" style="fill:#4ade80"/>
+        <circle cx="150" cy="100" r="6" style="fill:#4ade80"/>
+        <circle cx="180" cy="70" r="6" style="fill:#4ade80"/>
+        <!-- Edges (local connections) -->
+        <line x1="40" y1="125" x2="65" y2="75" class="edge"/>
+        <line x1="65" y1="75" x2="90" y2="80" class="edge"/>
+        <line x1="90" y1="80" x2="120" y2="90" class="edge"/>
+        <line x1="120" y1="90" x2="150" y2="100" class="edge"/>
+        <line x1="150" y1="100" x2="180" y2="70" class="edge"/>
+        <line x1="65" y1="75" x2="120" y2="90" class="edge" style="stroke:#333"/>
+        <!-- Labels -->
+        <text x="110" y="160" style="fill:#58a6ff;font-size:10px;text-anchor:middle">Manifold (continuous)</text>
+        <text x="110" y="175" style="fill:#4ade80;font-size:10px;text-anchor:middle">Graph (discrete approximation)</text>
+      </svg>
+    </div>
+  </div>
+  <div class="math-box">
+    <p>As graph density → ∞, the graph Laplacian converges to the Laplace-Beltrami operator on the manifold:</p>
+    \[ L_{\text{graph}} \xrightarrow{n \to \infty} \Delta_{\mathcal{M}} \]
+    <p>This means: graph-based operations (GNN propagation) approximate continuous geometric operations.</p>
+  </div>
+  <div class="intuition">A GNN doesn't just "average neighbors" — it's approximating smooth functions on the underlying data manifold. The graph is scaffolding for continuous geometry.</div>
+</section>
+
+<!-- Slide 10: Spectral Clustering — The Laplacian in Action -->
+<section>
+  <h2>Spectral Clustering — The Laplacian in Action</h2>
+  <div class="math-box">
+    <p><strong>Problem:</strong> partition graph into K clusters minimizing edge cuts</p>
+    <p><strong>Relaxed solution:</strong> use the first K eigenvectors of \(L\) (or \(L_{sym}\)) as node features, then K-means</p>
+    \[ V_k = [u_2, u_3, \ldots, u_{K+1}] \in \mathbb{R}^{n \times K} \]
+  </div>
+  <h3>Why eigenvectors find clusters:</h3>
+  <div class="step">
+    <strong>Minimization view:</strong> eigenvectors minimize \(f^T L f\) (total edge variation) subject to orthogonality.<br>
+    → The smoothest signals on the graph = the ones that are constant within clusters and change only at cluster boundaries.
+  </div>
+  <div class="step">
+    <strong>Cut view:</strong> the Fiedler vector \(u_2\) approximates the normalized graph cut:<br>
+    \(\text{NCut}(S, \bar{S}) = \frac{\text{cut}(S, \bar{S})}{\text{vol}(S)} + \frac{\text{cut}(S, \bar{S})}{\text{vol}(\bar{S})}\)<br>
+    Minimizing NCut ≈ thresholding \(u_2\) (NP-hard problem relaxed to eigenvalue problem).
+  </div>
+  <h3>Connection to GNNs:</h3>
+  <p>GNNs with K layers learn a representation where nodes in the same cluster have similar embeddings — they're doing a <strong>learned spectral clustering</strong> with task-specific loss.</p>
+  <div class="intuition">Spectral clustering = unsupervised community detection via eigenvectors. GNNs = supervised version — they learn what "community" means for your specific task (recommendations, classification, etc.).</div>
+</section>
+
+<!-- Slide 11: Normalized Laplacians — Which to Use? -->
+<section>
+  <h2>Three Laplacians — When to Use Which</h2>
+  <table>
+    <tr><th>Variant</th><th>Formula</th><th>Eigenvalues</th><th>Use case</th></tr>
+    <tr>
+      <td><strong>Unnormalized</strong></td>
+      <td>\(L = D - A\)</td>
+      <td>\([0, \infty)\)</td>
+      <td>Theory, spectral clustering on regular graphs</td>
+    </tr>
+    <tr>
+      <td><strong>Symmetric normalized</strong></td>
+      <td>\(L_{sym} = I - D^{-1/2}AD^{-1/2}\)</td>
+      <td>\([0, 2]\)</td>
+      <td>GCN (symmetric aggregation), spectral clustering</td>
+    </tr>
+    <tr>
+      <td><strong>Random walk</strong></td>
+      <td>\(L_{rw} = I - D^{-1}A\)</td>
+      <td>\([0, 2]\)</td>
+      <td>Directed graphs, PageRank, APPNP</td>
+    </tr>
+  </table>
+  <div class="math-box">
+    <p><strong>Key relationships:</strong></p>
+    <p>\(L_{sym} = D^{-1/2} L D^{-1/2}\) — similar to \(L\), same eigenvalues (for regular graphs)</p>
+    <p>\(L_{rw} = D^{-1} L\) — left-multiply by degree inverse</p>
+    <p>GCN uses: \(\hat{A} = D^{-1/2} A D^{-1/2} = I - L_{sym}\)</p>
+  </div>
+  <h3>The GCN connection:</h3>
+  <div class="step">
+    GCN propagation \(\hat{A}h = (I - L_{sym})h = h - L_{sym}h\)<br>
+    = original signal <strong>minus</strong> the Laplacian-smoothed version = <strong>one step of heat diffusion</strong>
+  </div>
+  <div class="intuition">GCN propagation IS heat diffusion on the graph. The symmetric normalized Laplacian ensures equal treatment of nodes regardless of degree. This is why GCN naturally produces smooth representations.</div>
+</section>
+
+<!-- Slide 12: Heat Diffusion Interpretation -->
+<section>
+  <h2>Heat Diffusion on Graphs</h2>
+  <div class="math-box">
+    <p><strong>Continuous heat equation:</strong> \(\frac{\partial u}{\partial t} = -L u\)</p>
+    <p><strong>Solution:</strong> \(u(t) = e^{-tL} u(0)\) — exponential diffusion kernel</p>
+    <br>
+    <p><strong>Discrete approximation (Euler step):</strong></p>
+    \[ u(t+\Delta t) \approx u(t) - \Delta t \cdot L \, u(t) = (I - \Delta t \cdot L) \, u(t) \]
+  </div>
+  <h3>Connection to GNN propagation:</h3>
+  <div class="step">
+    One GCN layer with \(\hat{A} = I - L_{sym}\) is <strong>exactly one Euler step of heat diffusion</strong> with \(\Delta t = 1\)!
+  </div>
+  <ul>
+    <li><strong>Layer 1:</strong> heat spreads to immediate neighbors (1-hop)</li>
+    <li><strong>Layer 2:</strong> heat reaches 2-hop neighbors</li>
+    <li><strong>Layer K:</strong> heat has spread K hops — approaching thermal equilibrium</li>
+    <li><strong>Layer ∞:</strong> uniform temperature = <strong>over-smoothing!</strong></li>
+  </ul>
+  <div class="intuition">GNN propagation = letting information "diffuse" like heat across the graph. The over-smoothing problem is just thermal equilibrium — if you diffuse long enough, everything reaches the same temperature.</div>
+</section>
+
+<!-- Slide 13: Putting It All Together — From Spectral to Spatial -->
+<section>
+  <h2>The Grand Picture: Spectral → Spatial</h2>
+  <div class="step">
+    <strong>1. Spectral convolution (expensive):</strong><br>
+    \(g_\theta *_G f = U \, g_\theta(\Lambda) \, U^T f\)<br>
+    <span style="font-size:0.85em;color:#f87171">Requires \(O(n^2)\) eigendecomposition + \(O(n^2)\) matrix multiply</span>
+  </div>
+  <div class="fragment step">
+    <strong>2. Chebyshev approximation (localized):</strong><br>
+    \(g_\theta(\Lambda) \approx \sum_{k=0}^K \theta_k T_k(\tilde{\Lambda})\)<br>
+    <span style="font-size:0.85em;color:#eab308">K-localized filter, O(K·|E|), no eigenvectors needed</span>
+  </div>
+  <div class="fragment step">
+    <strong>3. GCN (K=1 Chebyshev):</strong><br>
+    \(h' = \tilde{D}^{-1/2}\tilde{A}\tilde{D}^{-1/2} h W\)<br>
+    <span style="font-size:0.85em;color:#4ade80">1-hop aggregation, O(|E|·d), the practical GNN layer</span>
+  </div>
+  <div class="fragment math-box">
+    <p><strong>The journey:</strong></p>
+    <p>Spectral theory (elegant, exact, expensive)</p>
+    <p>→ Polynomial approximation (localized, efficient)</p>
+    <p>→ First-order approximation (one hop, spatial, fast)</p>
+    <p>→ <strong>GCN: "average neighbors"</strong> (what we actually compute)</p>
+  </div>
+  <div class="fragment intuition">The beauty: GCN's simple "average your neighbors" operation has a rigorous spectral interpretation — it's a first-order approximation of an optimal graph filter. Theory justifies practice.</div>
+</section>
+
+<!-- Slide 14: Summary -->
+<section>
+  <h2>Chapter 1b — Summary</h2>
+  <table>
+    <tr><th>Concept</th><th>Key Formula/Insight</th><th>Why it matters</th></tr>
+    <tr><td>Laplacian as difference</td><td>\((Lf)_i = \sum_{j\in N(i)} (f_i - f_j)\)</td><td>Measures local disagreement</td></tr>
+    <tr><td>Quadratic form</td><td>\(f^T L f = \sum_E (f_i-f_j)^2\)</td><td>Total graph smoothness</td></tr>
+    <tr><td>Eigenvectors</td><td>\(L = U\Lambda U^T\)</td><td>Graph frequency basis</td></tr>
+    <tr><td>Fiedler vector \(u_2\)</td><td>Smoothest non-constant signal</td><td>Graph bipartition / clustering</td></tr>
+    <tr><td>Graph Fourier Transform</td><td>\(\hat{f} = U^T f\)</td><td>Decompose into frequencies</td></tr>
+    <tr><td>Spectral filtering</td><td>\(U g_\theta(\Lambda) U^T f\)</td><td>Foundation of GCN</td></tr>
+    <tr><td>GCN = low-pass</td><td>Attenuates high \(\lambda\)</td><td>Explains over-smoothing</td></tr>
+    <tr><td>Heat diffusion</td><td>\(u(t) = e^{-tL}u(0)\)</td><td>GNN layer = one diffusion step</td></tr>
+    <tr><td>Manifold view</td><td>\(L_{graph} \to \Delta_\mathcal{M}\)</td><td>GNNs approximate geometry</td></tr>
+  </table>
+  <div class="intuition">The spectral lens gives you the "why" behind GNN design: why averaging works, why deeper fails, and why graph structure encodes meaningful information.</div>
+</section>
+
+<!-- Quiz Slide 1 -->
+<section>
+  <h2>Quiz — Chapter 1b</h2>
+  <div class="quiz-q">
+    <strong>Q1:</strong> If \(f^T L f = 0\) for a signal \(f\), what does this tell you about \(f\)?
+  </div>
+  <div class="fragment quiz-a">A: Since \(f^T L f = \sum_{(i,j)\in E}(f_i - f_j)^2 = 0\), every edge has \(f_i = f_j\). This means \(f\) is <strong>constant on every connected component</strong> — zero variation across all edges.</div>
+
+  <div class="quiz-q">
+    <strong>Q2:</strong> The Fiedler vector \(u_2\) has some positive and some negative entries. How do you use it for graph clustering?
+  </div>
+  <div class="fragment quiz-a">A: Partition nodes into two clusters by the <strong>sign of \(u_2\)</strong>: cluster A = {nodes where \(u_2(v) > 0\)}, cluster B = {nodes where \(u_2(v) < 0\)}. This approximates the minimum normalized cut. For K clusters, use the first K eigenvectors and run K-means on the rows of \([u_2, ..., u_{K+1}]\).</div>
+
+  <div class="quiz-q">
+    <strong>Q3:</strong> Why is GCN described as a "low-pass filter" on graphs? What's the consequence?
+  </div>
+  <div class="fragment quiz-a">A: GCN multiplies each frequency component by \((1-\lambda_k)\). For small \(\lambda_k\) (smooth): factor ≈ 1 (preserved). For large \(\lambda_k\) (oscillatory): factor ≈ 0 (suppressed). <strong>Consequence:</strong> after K layers, only smooth community structure survives — high-frequency discriminative signal is destroyed → over-smoothing.</div>
+</section>
+
+<!-- Quiz Slide 2 -->
+<section>
+  <h2>Quiz — Chapter 1b (continued)</h2>
+  <div class="quiz-q">
+    <strong>Q4:</strong> The heat equation on graphs is \(u(t+1) = (I - L)u(t)\). What happens as \(t \to \infty\)?
+  </div>
+  <div class="fragment quiz-a">A: All nodes converge to the <strong>same temperature</strong> (thermal equilibrium). In graph terms: the signal becomes constant — proportional to the degree distribution. This is the continuous-time analog of over-smoothing. Heat spreads until there are no gradients left.</div>
+
+  <div class="quiz-q">
+    <strong>Q5:</strong> A graph has eigenvalues \(\lambda_1=0, \lambda_2=0.1, \lambda_3=0.5, \lambda_4=1.8\). After one GCN layer (factor = \(1-\lambda\)), what fraction of each eigenvector's energy remains?
+  </div>
+  <div class="fragment quiz-a">A: \(u_1\): factor = \(1-0=1.0\) → <strong>100%</strong> retained (constant signal preserved).<br>
+  \(u_2\): factor = \(1-0.1=0.9\) → <strong>81%</strong> energy (factor² for energy).<br>
+  \(u_3\): factor = \(1-0.5=0.5\) → <strong>25%</strong> energy.<br>
+  \(u_4\): factor = \(1-1.8=-0.8\) → <strong>64%</strong> energy but <em>sign flipped</em> (oscillation, problematic!).<br>
+  Adding self-loops (renormalization) prevents negative factors by shifting eigenvalues to [0,1].</div>
+
+  <div class="quiz-q">
+    <strong>Q6:</strong> Why does spectral theory care about the graph Laplacian specifically, rather than just the adjacency matrix?
+  </div>
+  <div class="fragment quiz-a">A: The Laplacian is <strong>positive semi-definite</strong> (all eigenvalues ≥ 0) and its quadratic form has a clean interpretation (edge variation). The adjacency matrix has eigenvalues that can be negative and lacks the smoothness interpretation. L also has the special property that its null space tells you connected components. It's the natural operator for diffusion, cuts, and geometry on graphs.</div>
+</section>
+
+</div><!-- end slides -->
+</div><!-- end reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/math/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  plugins: [ RevealMath.MathJax3, RevealHighlight ],
+  mathjax3: {
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+  }
+});
+</script>
+</body>
+</html>
