@@ -4,17 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Welcome</h1>
-    <p>A personal site for research notes, projects, book reviews, and writing.</p>
-    <nav>
+    <nav class="site-nav">
+        <a href="index.html" class="site-title">Upasana RK</a>
         <ul>
-            <li><a href="DeepLearning/">Deep Learning Research</a></li>
-            <li><a href="Projects/">Past Projects</a></li>
+            <li><a href="DeepLearning/" class="active">Research</a></li>
+            <li><a href="Projects/">Projects</a></li>
             <li><a href="BookReviews/">Book Reviews</a></li>
             <li><a href="Writings/">Writings</a></li>
         </ul>
     </nav>
+
+    <h1>Welcome</h1>
+    <p>A personal site for research notes, projects, book reviews, and writing.</p>
+
+    <ul class="section-list">
+        <li><a href="DeepLearning/">Deep Learning Research</a> — Course notes on graph methods, generative recommendation, and more</li>
+        <li><a href="Projects/">Past Projects</a> — Career projects across ML, software, and applied research</li>
+        <li><a href="BookReviews/">Book Reviews</a> — Reflections on books in tech, science, philosophy, and fiction</li>
+        <li><a href="Writings/">Writings</a> — Essays on topics I care about</li>
+    </ul>
 </body>
 </html>
