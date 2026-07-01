@@ -10,7 +10,6 @@
   const courses = {
     'generative-rec': {
       title: 'Generative Retrieval for Recommendations',
-      basePath: 'DeepLearning/GenerativeRecommendation/',
       chapters: [
         { file: '01_sequential_rec_foundations.html', title: 'Ch 1: Sequential Recommendation Foundations' },
         { file: '02_generative_retrieval.html', title: 'Ch 2: Generative Retrieval' },
@@ -23,7 +22,6 @@
     },
     'graph-methods': {
       title: 'Graph Methods for Recommendations',
-      basePath: 'DeepLearning/GraphMethods/',
       chapters: [
         { file: '01_graph_foundations.html', title: 'Ch 1: Foundations of Graph Theory for ML' },
         { file: '01b_spectral_geometry.html', title: 'Ch 1b: Spectral Geometry' },
@@ -46,20 +44,23 @@
   const prev = chapterIdx > 0 ? chapters[chapterIdx - 1] : null;
   const next = chapterIdx < chapters.length - 1 ? chapters[chapterIdx + 1] : null;
 
-  // Calculate relative path to root
+  // Root path: number of directories deep from site root
+  // Chapter files are 3 levels deep: Website/DeepLearning/CourseName/chapter.html
+  // So we need "../../" to get back to site root
   const path = window.location.pathname;
-  const parts = path.replace('/Website/', '').split('/').filter(Boolean);
-  const depth = parts.length - 1;
-  const rootPath = depth <= 0 ? '.' : '../'.repeat(depth).replace(/\/$/, '');
+  // Count directory depth from path segments (file is last segment)
+  const segments = path.split('/').filter(Boolean);
+  const depth = segments.length - 1; // -1 for the filename itself
+  const rootPath = depth <= 0 ? './' : '../'.repeat(depth);
 
   // Build chapter nav bar
   const nav = document.createElement('div');
   nav.className = 'chapter-top-nav';
   nav.innerHTML = `
     <div class="chapter-nav-inner">
-      <a href="${rootPath}/${courseData.basePath}" class="chapter-back-link">&larr; Back to ${courseData.title}</a>
+      <a href="index.html" class="chapter-back-link">&larr; Back to ${courseData.title}</a>
       <span class="chapter-nav-sep">|</span>
-      <a href="${rootPath}/index.html" class="chapter-home-link">Home</a>
+      <a href="${rootPath}index.html" class="chapter-home-link">Home</a>
       <span class="chapter-nav-spacer"></span>
       <span class="chapter-position">${chapterIdx + 1} / ${chapters.length}</span>
     </div>
