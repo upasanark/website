@@ -138,6 +138,35 @@ a:hover {
     text-decoration: underline;
 }
 
+/* ===== Content Pages Intro Text ===== */
+body > p:first-of-type {
+    font-size: 1.05rem;
+    color: #555;
+    max-width: 650px;
+    margin-bottom: 1.5rem;
+}
+
+/* ===== Back Link ===== */
+.back-link {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e8e8e8;
+}
+
+.back-link a {
+    font-size: 0.95rem;
+    color: #888;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    transition: color 0.2s;
+}
+
+.back-link a:hover {
+    color: #5b7fa5;
+    text-decoration: none;
+}
+
 /* ===== Lists ===== */
 ul, ol {
     margin: 1rem 0;
@@ -178,6 +207,88 @@ li {
 }
 
 .section-list li a:hover {
+    text-decoration: none;
+}
+
+/* ===== Chapter Top Navigation Bar ===== */
+.chapter-top-nav {
+    background: #1a1a2e;
+    border-bottom: 1px solid #333;
+    padding: 0.6rem 1rem;
+    margin-bottom: 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.chapter-nav-inner {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.chapter-back-link,
+.chapter-home-link {
+    color: #8b949e !important;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.chapter-back-link:hover,
+.chapter-home-link:hover {
+    color: #58a6ff !important;
+    text-decoration: none;
+}
+
+.chapter-nav-sep {
+    color: #444;
+}
+
+.chapter-nav-spacer {
+    flex: 1;
+}
+
+.chapter-position {
+    color: #555;
+    font-size: 0.8rem;
+    font-family: monospace;
+}
+
+/* ===== Chapter Bottom Navigation ===== */
+.chapter-bottom-nav {
+    margin-top: 1rem;
+    padding: 1rem 0;
+    border-top: 1px solid #333;
+}
+
+.chapter-bottom-inner {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.9rem;
+}
+
+.chapter-prev,
+.chapter-next {
+    color: #58a6ff !important;
+    text-decoration: none;
+    padding: 0.4rem 0.8rem;
+    border: 1px solid #333;
+    border-radius: 4px;
+    transition: all 0.2s;
+    max-width: 45%;
+}
+
+.chapter-prev:hover,
+.chapter-next:hover {
+    background: #1c3a5e;
+    border-color: #58a6ff;
     text-decoration: none;
 }
 
@@ -313,5 +424,17 @@ footer {
 
     .section-list li {
         padding: 0.75rem 1rem;
+    }
+
+    .chapter-bottom-inner {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .chapter-prev,
+    .chapter-next {
+        max-width: 100%;
+        width: 100%;
+        text-align: center;
     }
 }

@@ -1,0 +1,57 @@
+# Jekyll configuration for GitHub Pages
+title: Upasana Ramakrishnan
+description: Research notes, projects, book reviews, and writing
+url: "https://upasanark.github.io"
+baseurl: "/website"
+
+# Use a minimal theme — we provide our own layouts
+theme: null
+
+# Don't process certain folders
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+
+# Default front matter for all pages
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: "default"
+  - scope:
+      path: "DeepLearning/GenerativeRecommendation"
+    values:
+      layout: "default"
+      section: "Research"
+  - scope:
+      path: "DeepLearning/GraphMethods"
+    values:
+      layout: "default"
+      section: "Research"
+  - scope:
+      path: "DeepLearning"
+    values:
+      layout: "default"
+      section: "Research"
+  - scope:
+      path: "BookReviews"
+    values:
+      layout: "default"
+      section: "Book Reviews"
+  - scope:
+      path: "Projects"
+    values:
+      layout: "default"
+      section: "Projects"
+  - scope:
+      path: "Writings"
+    values:
+      layout: "default"
+      section: "Writings"
+
+# Markdown settings
+markdown: kramdown
+highlighter: rouge
