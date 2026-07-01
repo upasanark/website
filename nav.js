@@ -1,23 +1,23 @@
 // Shared navigation bar for all pages
-// Include with: <script src="/nav.js"></script> or <script src="../nav.js"></script> etc.
+// Include with: <script src="../nav.js"></script> etc.
 
 (function() {
-  // Determine the site root path based on current page depth
+  // Get the current page path and determine depth from root
   const path = window.location.pathname;
-  const parts = path.replace('/Website/', '').split('/').filter(Boolean);
   
-  // Calculate relative path to root
-  const depth = parts.length - 1; // -1 because the filename itself is a part
+  // Remove leading/trailing slashes, split into segments
+  const segments = path.split('/').filter(Boolean);
+  
+  // The last segment is the filename (e.g., "episode1.html" or "index.html")
+  // Everything before it is directory depth
+  const depth = segments.length - 1;
+  
+  // Build relative path to root
   const rootPath = depth <= 0 ? '.' : '../'.repeat(depth).replace(/\/$/, '');
   
-  // Determine active section
-  const activeSection = parts[0] || 'home';
-  const sectionMap = {
-    'DeepLearning': 'Research',
-    'Projects': 'Projects',
-    'BookReviews': 'Book Reviews',
-    'Writings': 'Writings'
-  };
+  // Determine active section from the first directory segment
+  const firstDir = segments[0] || '';
+  const activeSection = firstDir;
   
   // Build nav HTML
   const nav = document.createElement('nav');
