@@ -6,7 +6,7 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     line-height: 1.7;
     color: #2d2d2d;
     background: #f8f9fa;
@@ -71,29 +71,157 @@ nav.site-nav ul li a.active {
 /* ===== Hero Section (Homepage) ===== */
 .hero {
     text-align: center;
-    padding: 3rem 0 2rem;
+    padding: 3rem 0 2.5rem;
+}
+
+.hero-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #5b7fa5, #3d5a7a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    box-shadow: 0 4px 14px rgba(91, 127, 165, 0.3);
+}
+
+.hero-avatar span {
+    color: #fff;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
 }
 
 .hero h1 {
     font-size: 2.5rem;
     font-weight: 700;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.4rem;
     color: #1a1a1a;
     letter-spacing: -0.02em;
 }
 
-.hero .subtitle {
-    font-size: 1.1rem;
+.hero-subtitle {
+    font-size: 1.05rem;
+    color: #5b7fa5;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.hero-desc {
+    font-size: 1.05rem;
     color: #666;
-    max-width: 600px;
+    max-width: 560px;
     margin: 0 auto 1.5rem;
     line-height: 1.6;
 }
 
-.hero .tagline {
-    font-size: 0.95rem;
-    color: #888;
-    font-style: italic;
+.hero-links {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.hero-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    color: #555;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+    background: #fff;
+}
+
+.hero-link:hover {
+    border-color: #5b7fa5;
+    color: #5b7fa5;
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(91, 127, 165, 0.1);
+}
+
+.hero-link svg {
+    flex-shrink: 0;
+}
+
+/* ===== Home Section Cards ===== */
+.home-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0.5rem 0 1rem;
+}
+
+.home-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.home-card:hover {
+    border-color: #5b7fa5;
+    box-shadow: 0 4px 12px rgba(91, 127, 165, 0.12);
+    transform: translateY(-2px);
+    text-decoration: none;
+}
+
+.home-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: #f0f4f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #5b7fa5;
+    transition: background 0.2s;
+}
+
+.home-card:hover .home-card-icon {
+    background: #e8eef5;
+}
+
+.home-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.home-card-body h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0 0 0.2rem;
+}
+
+.home-card-body p {
+    font-size: 0.9rem;
+    color: #777;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.home-card-arrow {
+    font-size: 1.2rem;
+    color: #ccc;
+    flex-shrink: 0;
+    transition: color 0.2s, transform 0.2s;
+}
+
+.home-card:hover .home-card-arrow {
+    color: #5b7fa5;
+    transform: translateX(3px);
 }
 
 /* ===== Typography ===== */
@@ -410,8 +538,13 @@ footer {
         font-size: 1.8rem;
     }
 
-    .hero .subtitle {
-        font-size: 1rem;
+    .hero-desc {
+        font-size: 0.95rem;
+    }
+
+    .hero-links {
+        flex-direction: column;
+        align-items: center;
     }
 
     h1 {
