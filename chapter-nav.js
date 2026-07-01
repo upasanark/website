@@ -6,7 +6,6 @@
   const course = script.getAttribute('data-course');
   const chapterIdx = parseInt(script.getAttribute('data-chapter'), 10);
 
-  // Course chapter definitions
   const courses = {
     'generative-rec': {
       title: 'Generative Retrieval for Recommendations',
@@ -44,14 +43,28 @@
   const prev = chapterIdx > 0 ? chapters[chapterIdx - 1] : null;
   const next = chapterIdx < chapters.length - 1 ? chapters[chapterIdx + 1] : null;
 
-  // Root path: number of directories deep from site root
-  // Chapter files are 3 levels deep: Website/DeepLearning/CourseName/chapter.html
-  // So we need "../../" to get back to site root
-  const path = window.location.pathname;
-  // Count directory depth from path segments (file is last segment)
-  const segments = path.split('/').filter(Boolean);
-  const depth = segments.length - 1; // -1 for the filename itself
-  const rootPath = depth <= 0 ? './' : '../'.repeat(depth);
+  // Robust path calculation based on script location
+  const scriptUrl = new URL(document.currentScript.src);
+  const pageUrl = new URL(window.location.href);
+
+  const scriptParts = scriptUrl.pathname.split('/').filter(Boolean);
+  const pageParts = pageUrl.pathname.split('/').filter(Boolean);
+
+  // script is e.g. ['website', 'chapter-nav.js']
+  // page is e.g. ['website', 'DeepLearning', 'GenerativeRecommendation', '02_generative_retrieval.html']
+  const scriptDir = scriptParts.slice(0, -1); // remove filename
+  const pageDir = pageParts.slice(0, -1); // remove filename
+
+  // Find common root
+  let matchDepth = 0;
+  for (let i = 0; i < scriptDir.length && i < pageDir.length; i++) {
+    if (scriptDir[i] === pageDir[i]) matchDepth++;
+    else break;
+  }
+
+  // Page is deeper than script, so go up from page to common ancestor
+  const up = pageDir.length - matchDepth;
+  const rootPath = up <= 0 ? '.' : '../'.repeat(up);
 
   // Build chapter nav bar
   const nav = document.createElement('div');
@@ -60,7 +73,7 @@
     <div class="chapter-nav-inner">
       <a href="index.html" class="chapter-back-link">&larr; Back to ${courseData.title}</a>
       <span class="chapter-nav-sep">|</span>
-      <a href="${rootPath}index.html" class="chapter-home-link">Home</a>
+      <a href="${rootPath}/index.html" class="chapter-home-link">Home</a>
       <span class="chapter-nav-spacer"></span>
       <span class="chapter-position">${chapterIdx + 1} / ${chapters.length}</span>
     </div>
