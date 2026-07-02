@@ -5,16 +5,126 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Past Projects — Upasana Ramakrishnan</title>
     <link rel="stylesheet" href="../styles.css">
+    <style>
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .project-card {
+            background: #fff;
+            border: 1px solid #e8e8e8;
+            border-radius: 10px;
+            padding: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .project-card:hover {
+            border-color: #5b7fa5;
+            box-shadow: 0 4px 12px rgba(91, 127, 165, 0.12);
+            transform: translateY(-2px);
+        }
+        .project-card h3 {
+            font-size: 1.05rem;
+            margin: 0 0 0.4rem;
+            color: #1a1a1a;
+        }
+        .project-card .project-desc {
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.5;
+            flex: 1;
+        }
+        .project-card a {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #5b7fa5;
+            text-decoration: none;
+            margin-top: 0.75rem;
+        }
+        .project-card a:hover {
+            text-decoration: underline;
+        }
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 2rem 0 1rem;
+            color: #333;
+        }
+        .section-title:first-of-type {
+            margin-top: 1rem;
+        }
+        .no-link {
+            opacity: 0.7;
+        }
+        .no-link a {
+            display: none;
+        }
+    </style>
 </head>
 <body>
     <script src="../nav.js"></script>
 
     <h1>Past Projects</h1>
-    <p>A collection of career projects and side work spanning machine learning, software engineering, and applied research.</p>
+    <p>Career projects across machine learning, software engineering, and applied research.</p>
 
-    <ul class="section-list">
-        <li><em>Coming soon...</em></li>
-    </ul>
+    <h2 class="section-title">GE Research</h2>
+    <div class="projects-grid">
+        <div class="project-card">
+            <h3>Shear Estimation</h3>
+            <p class="project-desc">Virtual sensing algorithms for real-time wind condition and load estimation for turbine operation optimization.</p>
+        </div>
+
+        <div class="project-card">
+            <h3>OBC — Optimal Blade Control</h3>
+            <p class="project-desc">Supervisory control platform for real-time turbine operation optimization with up to 4% annual energy production gain.</p>
+        </div>
+
+        <div class="project-card">
+            <h3>WFO / DPC — Surrogate Modeling</h3>
+            <p class="project-desc">Physics and ML surrogate models for wind turbine load and power prediction. Reduced 115k hours of simulation to 6k hours, saving ~$4M.</p>
+            <a href="wfo-dpc/">Learn more →</a>
+        </div>
+
+        <div class="project-card no-link">
+            <h3>VG — Vortex Generator</h3>
+            <p class="project-desc">Machine learning-based inverse design for airfoil/blade performance prediction. NLP and recommendation systems using BERT and fine-tuning.</p>
+            <a href="vg/">Learn more →</a>
+        </div>
+
+        <div class="project-card">
+            <h3>Fleet Operations Dashboard</h3>
+            <p class="project-desc">Cloud-based fleet health monitoring with PySpark analytics on big data (up to 10GB/hr). Reduced data quality issues by 90%.</p>
+        </div>
+
+        <div class="project-card no-link">
+            <h3>ADVENT — Advanced Ventilation</h3>
+            <p class="project-desc">Real-time EMG signal analysis for detecting respiratory patterns in mechanically ventilated patients. Signal processing and adaptive calibration.</p>
+            <a href="advent/">Learn more →</a>
+        </div>
+
+        <div class="project-card">
+            <h3>Blade CMS — Condition Monitoring</h3>
+            <p class="project-desc">Anomaly detection in blade accelerometer signals using spectral analysis. Reduced false positive rate by 70%.</p>
+        </div>
+
+        <div class="project-card no-link">
+            <h3>Wake Management</h3>
+            <p class="project-desc">Gaussian process models for wind farm wake effects across conditions and yaw angles. Optimization framework with uncertainty quantification.</p>
+            <a href="wake-mgmt/">Learn more →</a>
+        </div>
+    </div>
+
+    <h2 class="section-title">Amazon</h2>
+    <div class="projects-grid">
+        <div class="project-card no-link">
+            <h3>E3 Mobility</h3>
+            <p class="project-desc">Electric 2-wheeler predictive analytics, computer vision for obstacle avoidance, lane alerts, and pothole detection.</p>
+        </div>
+    </div>
 
     <footer>
         &copy; 2026 Upasana Ramakrishnan
