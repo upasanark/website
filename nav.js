@@ -32,9 +32,9 @@
   nav.innerHTML = `
     <a href="${rootPath}/index.html" class="site-title">Upasana Ramakrishnan</a>
     <ul>
-      <li><a href="${rootPath}/DeepLearning/" class="${activeSection === 'DeepLearning' ? 'active' : ''}">Research</a></li>
+      <li><a href="${rootPath}/DeepLearning/" class="${activeSection === 'DeepLearning' ? 'active' : ''}">Learnings</a></li>
       <li><a href="${rootPath}/Projects/" class="${activeSection === 'Projects' ? 'active' : ''}">Projects</a></li>
-      <li><a href="${rootPath}/BookReviews/" class="${activeSection === 'BookReviews' ? 'active' : ''}">Book Reviews</a></li>
+      <li><a href="${rootPath}/BookReviews/" class="${activeSection === 'BookReviews' ? 'active' : ''}">Readings</a></li>
       <li><a href="${rootPath}/Writings/" class="${activeSection === 'Writings' ? 'active' : ''}">Writings</a></li>
     </ul>
   `;
