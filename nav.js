@@ -1,44 +1,33 @@
 // Shared navigation bar for all pages
-// Include with: <script src="../nav.js"></script> etc.
+// Include with: <script src="nav.js"></script> or <script src="../nav.js"></script> etc.
 
 (function() {
-  const scriptUrl = new URL(document.currentScript.src);
-  const pageUrl = new URL(window.location.href);
+  const scriptEl = document.currentScript;
+  // Determine how deep we are by counting '../' in the script src attribute
+  const src = scriptEl.getAttribute('src') || 'nav.js';
+  const depth = (src.match(/\.\.\//g) || []).length;
+  const root = depth === 0 ? '' : '../'.repeat(depth);
 
-  const scriptParts = scriptUrl.pathname.split('/').filter(Boolean); // e.g. ['website', 'nav.js']
-  const pageParts = pageUrl.pathname.split('/').filter(Boolean);     // e.g. ['website', 'Writings', 'Mind-Body Problem', 'episode1.html']
+  // Determine active section from URL path
+  const path = window.location.pathname;
+  let activeSection = '';
+  if (path.includes('/DeepLearning')) activeSection = 'DeepLearning';
+  else if (path.includes('/Career')) activeSection = 'Career';
+  else if (path.includes('/Projects')) activeSection = 'Career';
+  else if (path.includes('/BookReviews')) activeSection = 'BookReviews';
+  else if (path.includes('/Writings')) activeSection = 'Writings';
 
-  // Compare directory paths (exclude filenames)
-  const scriptBase = scriptParts.slice(0, -1);
-  const pageBase = pageParts.slice(0, -1);
-
-  // Count matching path segments from root
-  let matchDepth = 0;
-  for (let i = 0; i < scriptBase.length && i < pageBase.length; i++) {
-    if (scriptBase[i] === pageBase[i]) matchDepth++;
-    else break;
-  }
-
-  // How many levels up from page to common root
-  const up = pageBase.length - matchDepth;
-  const rootPath = up <= 0 ? '.' : '../'.repeat(up);
-
-  // Determine active section from the first directory segment after site root
-  const activeSection = pageBase[matchDepth] || '';
-
-  // Build nav HTML
   const nav = document.createElement('nav');
   nav.className = 'site-nav';
   nav.innerHTML = `
-    <a href="${rootPath}/index.html" class="site-title">Upasana Ramakrishnan</a>
+    <a href="${root}index.html" class="site-title">Upasana Ramakrishnan</a>
     <ul>
-      <li><a href="${rootPath}/DeepLearning/" class="${activeSection === 'DeepLearning' ? 'active' : ''}">Learnings</a></li>
-      <li><a href="${rootPath}/Projects/" class="${activeSection === 'Projects' ? 'active' : ''}">Projects</a></li>
-      <li><a href="${rootPath}/BookReviews/" class="${activeSection === 'BookReviews' ? 'active' : ''}">Readings</a></li>
-      <li><a href="${rootPath}/Writings/" class="${activeSection === 'Writings' ? 'active' : ''}">Writings</a></li>
+      <li><a href="${root}DeepLearning/" class="${activeSection === 'DeepLearning' ? 'active' : ''}">Learnings</a></li>
+      <li><a href="${root}Career/" class="${activeSection === 'Career' ? 'active' : ''}">Career</a></li>
+      <li><a href="${root}Writings/" class="${activeSection === 'Writings' ? 'active' : ''}">Writings</a></li>
+      <li><a href="${root}BookReviews/" class="${activeSection === 'BookReviews' ? 'active' : ''}">Readings</a></li>
     </ul>
   `;
 
-  // Insert at the top of body
   document.body.insertBefore(nav, document.body.firstChild);
 })();
