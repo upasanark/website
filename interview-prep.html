@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Prep</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        .prep-header { margin-bottom: 2rem; }
+        .prep-header p { color: rgba(255,255,255,0.5); font-size: 0.85rem; }
+
+        .topic-section { margin-bottom: 2.5rem; }
+        .topic-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #00d4ff;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(0,212,255,0.2);
+        }
+
+        .qa-item {
+            margin-bottom: 0.5rem;
+        }
+        .qa-question {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 0.9rem 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+        .qa-question:hover {
+            border-color: rgba(0,212,255,0.3);
+            background: rgba(0,212,255,0.04);
+        }
+        .qa-question span.q-text {
+            font-size: 0.88rem;
+            color: rgba(255,255,255,0.85);
+            font-weight: 500;
+        }
+        .qa-question span.q-toggle {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+        .qa-item.open .qa-question span.q-toggle {
+            transform: rotate(90deg);
+        }
+        .qa-item.open .qa-question {
+            border-color: rgba(0,212,255,0.4);
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .qa-answer {
+            display: none;
+            background: rgba(0,212,255,0.03);
+            border: 1px solid rgba(0,212,255,0.2);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 1rem 1.2rem;
+            font-size: 0.83rem;
+            color: rgba(255,255,255,0.7);
+            line-height: 1.7;
+        }
+        .qa-item.open .qa-answer {
+            display: block;
+        }
+        .qa-answer strong {
+            color: #00d4ff;
+        }
+        .qa-answer code {
+            background: rgba(255,255,255,0.08);
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="site-nav">
+        <a href="index.html" class="site-title">Upasana Ramakrishnan</a>
+        <ul>
+            <li><a href="DeepLearning/">Learnings</a></li>
+            <li><a href="Career/">Career</a></li>
+            <li><a href="Writings/">Writings</a></li>
+            <li><a href="BookReviews/">Readings</a></li>
+        </ul>
+    </nav>
+
+    <div class="prep-header">
+        <h1>Interview Prep</h1>
+        <p>Hidden page — not linked from homepage. Click any question to reveal the answer.</p>
+    </div>
+
+    <!-- ===== GNN & Graph Methods ===== -->
+    <div class="topic-section">
+        <h2 class="topic-title">Graph Neural Networks & Graph Methods</h2>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">What does a GNN capture that a feedforward network on tabular features cannot? Use the wind farm wake example.</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                Tabular models treat each sample as i.i.d. — each turbine is an independent row. A GNN encodes <strong>relational structure</strong>: upstream turbines create wake effects on downstream ones, and multi-hop propagation captures cascading chains (A wakes B wakes C). Edge features can carry direction, distance, and wake intensity. The graph also adapts dynamically with wind direction — something hard to express in a fixed feature table.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">Why does LightGCN remove both W (weight matrix) and σ (nonlinearity) from the standard GCN layer for collaborative filtering?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                In CF, user/item nodes start with <strong>random ID embeddings</strong> — no meaningful input features. Applying W to a random vector just produces a different random vector. Nonlinearity between layers adds complexity with no benefit when the signal is purely structural. The key insight: <strong>for CF, the graph IS the signal</strong>. The only useful operation is neighborhood averaging. LightGCN pushes all learning into the embeddings themselves, optimized so that when transformed by the normalized adjacency matrix, the result satisfies the CF objective. Parameters scale O(n × d) regardless of graph density.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">What is over-smoothing in GNNs? Why are most GNNs limited to 2–3 layers?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                After K layers of mean aggregation, all node embeddings converge toward the global mean. Mathematically, repeated averaging is a <strong>low-pass filter</strong> that kills discriminative signal. After 2–3 layers, nodes become indistinguishable. <strong>Mitigations:</strong> Residual connections (h' = h + GNN(h)), Jumping Knowledge (combine all layer outputs via concat/max/attention), DropEdge (randomly remove edges during training to slow diffusion).
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">For a graph with 28M user nodes, full self-attention is O(n²). Name two strategies to make graph transformers tractable.</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                <strong>1. Sparse attention:</strong> Only attend to graph neighbors + sampled distant nodes. Trade-off: loses some long-range signal but keeps O(n·k) complexity.<br><br>
+                <strong>2. Cluster-based attention:</strong> Cluster nodes, attend within clusters + across cluster representatives. Trade-off: introduces quantization error at cluster boundaries, but enables hierarchical global context.<br><br>
+                Other options: linear attention (Performer — approximate softmax with random features → O(n)), subgraph sampling (ClusterGCN style).
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">In GAT vs GCN — what's the fundamental difference in how neighbors are weighted, and when does GAT help?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                GCN uses <strong>fixed weights from graph structure</strong> (degree normalization: 1/√(dᵢ·dⱼ)). All neighbors contribute equally (modulo degree). GAT <strong>learns attention coefficients</strong>: αᵢⱼ = softmax(LeakyReLU(aᵀ[Whᵢ ∥ Whⱼ])). GAT helps when not all neighbors are equally relevant — e.g., in a user-item graph where some interactions are noise (accidental clicks) and others are strong signal (purchases). Multi-head attention lets the model attend to different aspects simultaneously.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">How would you handle the multi-interest problem in graph-based recommendations? Why does a single user embedding fail?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                A user who buys electronics + yoga gear + cookbooks gets a single embedding that's <strong>close to none</strong> of those clusters — the "average user" fallacy. Solutions: <strong>DGCF</strong> (disentangled channels, but latent and expensive), <strong>PIMIRec</strong> (prototype clustering, but no collaborative signal), or <strong>explicit clustering</strong> — GMM cluster item embeddings, tag edges with cluster identity, propagate per-cluster to get K interest-specific embeddings per user. Score candidate items against all user prototypes and take max. The explicit approach is interpretable, compatible with pre-trained embeddings, and scales well.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">In your wind farm work, would the turbine graph be directed or undirected, homogeneous or heterogeneous? Why?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                <strong>Directed</strong> — wake effects are asymmetric: an upwind turbine impacts a downwind turbine but not vice versa. <strong>Homogeneous</strong> — all nodes are the same entity type (turbines) with the same feature space. The edge direction (and existence) depends on current wind direction, so you'd either rebuild the adjacency per condition, use edge features encoding directional wind alignment, or use attention (GAT-style) to let the model learn which neighbors matter given current conditions.
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Generative Recommendation ===== -->
+    <div class="topic-section">
+        <h2 class="topic-title">Generative Recommendation & Sequential Models</h2>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">SASRec uses causal attention, BERT4Rec uses bidirectional. Why can't you directly deploy BERT4Rec for next-item prediction?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                BERT4Rec trains with Cloze task — masking items <strong>in the middle</strong> with context on both sides. At inference, you append [MASK] at position t+1, but now there's nothing to the right — <strong>train-test distribution mismatch</strong>. The model never practiced predicting from one-sided context. SASRec's causal masking means position t <em>never sees</em> future positions during training, so next-item prediction at test time exactly matches the training task. No distribution shift.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">What are the three fundamental limitations of ID-based sequential recommenders (SASRec, BERT4Rec)?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                <strong>1. Cold start:</strong> New items have no learned embedding — zero signal until interactions accumulate.<br><br>
+                <strong>2. No semantics:</strong> ID 42 tells you nothing about the item — all relationships must be learned from co-occurrence data alone.<br><br>
+                <strong>3. Vocabulary scale:</strong> Softmax over millions of items is computationally expensive and each item needs a separate full-dimensional embedding vector. No parameter sharing between similar items.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">How does TIGER's semantic tokenization solve cold-start, and what's the key assumption that makes it work?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                TIGER assigns each item a <strong>token sequence [t₁, t₂, t₃]</strong> derived from item features and collaborative info via RQ-VAE. Cold-start items get tokens based on their features alone — no interactions needed.<br><br>
+                <strong>Key assumption:</strong> Semantically similar items share token prefixes. If two running shoes are similar, they might be [12, 45, 78] and [12, 45, 93] — same prefix, different final token. This is like a zip code: "943xx" = Palo Alto area. The RQ-VAE is trained to ensure nearby items in embedding space map to nearby paths in the codebook tree. If this property breaks, autoregressive generation can't generalize.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">In beam search for generative retrieval, what's the failure mode of greedy decoding (beam=1) and why is it worse for recommendations than for text?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                Greedy picks the highest-probability t₁, then best t₂ given that t₁. But the <strong>globally best item might have a mediocre first token</strong>. A single wrong greedy choice at t₁ locks you out of the entire correct subtree.<br><br>
+                <strong>Why worse for recommendations than text:</strong> In text, many continuations are acceptable — greedy is "good enough." In recommendation, token sequences must exactly match valid items in the catalog. [12, 45, 78] is a specific product; [12, 45, 79] is completely different. There's no "close enough." Also, recommendations need a <strong>ranked top-K list</strong>, not just one answer — beam search naturally produces K candidates with scores.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">What is RQ-VAE and why is it preferred over a flat VQ-VAE for item tokenization?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                <strong>VQ-VAE</strong> maps each item to a single code from one codebook of size K — only K distinct items can be represented, or you need a massive codebook.<br><br>
+                <strong>RQ-VAE (Residual Quantization)</strong> uses a sequence of codebooks. The first codebook quantizes the embedding, then the <em>residual</em> (error) is quantized by the second codebook, and so on. With L codebooks of size K, you can represent K^L items. This gives a <strong>natural hierarchy</strong>: early tokens capture coarse semantics, later tokens refine — exactly what autoregressive generation needs. It's also more parameter-efficient than a single codebook of size K^L.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">How would you evaluate a generative retrieval system vs a traditional two-tower retrieval model?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                <strong>Metrics:</strong> Recall@K, NDCG@K, Hit Rate — same as traditional retrieval.<br><br>
+                <strong>Key differences in evaluation:</strong><br>
+                - Generative models may produce <strong>invalid token sequences</strong> (sequences that don't map to any real item) — measure "valid generation rate"<br>
+                - Latency comparison: two-tower uses ANN search (fast), generative uses beam search (potentially slower with large beams)<br>
+                - Cold-start split: test on items with zero training interactions — generative should excel here<br>
+                - Diversity: does beam search produce diverse results or mode-collapse to similar items sharing prefixes?
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== General ML ===== -->
+    <div class="topic-section">
+        <h2 class="topic-title">General ML & Applied Science</h2>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">BPR loss vs InfoNCE loss for learning embeddings — what's the difference and when do you prefer each?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                <strong>BPR (Bayesian Personalized Ranking):</strong> Pairwise — L = -Σ ln σ(ŷ_ui - ŷ_uj). Requires one positive, one sampled negative per update. Simple, well-understood gradients.<br><br>
+                <strong>InfoNCE:</strong> Listwise — L = -log(exp(sim(u,i)/τ) / Σₖ exp(sim(u,k)/τ)). Uses <em>all</em> negatives in the batch denominator. More negative signal per step, but sensitive to temperature τ.<br><br>
+                <strong>Prefer BPR</strong> when compute budget is tight or negatives are carefully curated. <strong>Prefer InfoNCE</strong> when you can use large batch sizes (in-batch negatives are free) and want stronger contrastive signal. InfoNCE generally works better with more negatives, BPR is more stable with fewer.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">You built surrogate models for wind turbine load prediction. How do you decide between a Gaussian process and a neural network as the surrogate?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                <strong>Gaussian Process:</strong> Gives calibrated uncertainty estimates out of the box. Great for small data (< 10K points), sequential optimization (Bayesian optimization), and when you need to know <em>how confident</em> the prediction is. Scales O(n³) naively.<br><br>
+                <strong>Neural Network:</strong> Scales to large datasets, handles high-dimensional inputs and complex nonlinearities better. But uncertainty requires extra work (ensembles, MC dropout).<br><br>
+                <strong>In the wind farm context:</strong> GPs were ideal for wake modeling (relatively low-dimensional input: wind speed, direction, yaw angles; moderate data sizes per farm configuration; uncertainty needed for robust optimization). NNs were better for load prediction across full design spaces with many parameters and large DOE datasets.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">What's the difference between hard negatives and random negatives in contrastive learning, and what's the risk of each?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                <strong>Random negatives:</strong> Sample uniformly from all items. Simple but often "too easy" — the model learns nothing from items the user clearly wouldn't interact with (trivially distinguishable).<br><br>
+                <strong>Hard negatives:</strong> Items close in embedding space but not interacted with. Provide strong gradient signal but risk <strong>false negatives</strong> — the user might actually like the item but just hasn't seen it yet. Training on false negatives teaches the model wrong boundaries.<br><br>
+                <strong>Sweet spot:</strong> Popularity-biased sampling (popular items user chose NOT to interact with) or semi-hard negatives (close but not closest). In-batch negatives offer a natural difficulty distribution without extra sampling cost.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">How does your real-time anomaly detection on turbine sensor signals differ from anomaly detection in a recommendation system?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                <strong>Turbine signals:</strong> Time-series, high-frequency (kHz), physics-governed. Anomalies are deviations from physical models — sensor faults, mechanical degradation. Ground truth exists (component failures are recorded). Methods: signal processing (FFT, wavelets), reconstruction error (autoencoders), statistical process control.<br><br>
+                <strong>Recommendation systems:</strong> Anomalies are behavioral — bot traffic, click fraud, sudden popularity spikes. Data is sparse, event-driven (not continuous), and ground truth is rare. Methods: session pattern analysis, deviation from user's own history, graph-based anomalies (sudden degree changes).<br><br>
+                <strong>Key shared principle:</strong> Both define "normal" via a model and flag deviations. The difference is the signal structure (continuous physics vs discrete interactions) and the evaluation (precision/recall on labeled faults vs business-metric impact).
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">You've worked across wind energy, healthcare (ventilators), and recommendation systems. How does "deploying ML in production" differ across these domains?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                <strong>Wind energy:</strong> Models run on edge/SCADA systems with limited compute. Latency requirement is seconds (control loop). Safety-critical — a bad prediction can damage equipment worth millions. Extensive simulation testing before field deployment. Regulatory compliance.<br><br>
+                <strong>Healthcare (ventilators):</strong> Most stringent — FDA/regulatory approval required. Patient safety is paramount. Models must be interpretable to clinicians. Real-time (milliseconds for breath detection). Extensive clinical validation with diverse patient populations.<br><br>
+                <strong>Recommendations:</strong> Cloud-deployed, abundant compute. Latency target ~100ms (user-facing). Not safety-critical but economically important. A/B testing is easy — deploy to 1% of traffic. Can iterate fast. Model retraining is frequent (daily/weekly) as user behavior shifts.<br><br>
+                <strong>Common thread:</strong> All require monitoring for drift, but the consequences of failure and the iteration speed differ by orders of magnitude.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">Explain the bias-variance trade-off in the context of choosing model complexity for a surrogate model.</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                <strong>High bias (too simple):</strong> A linear surrogate for turbine load can't capture nonlinear aerodynamics — systematically underpredicts at extreme conditions. Low training error variance but consistent error.<br><br>
+                <strong>High variance (too complex):</strong> A very deep network fits training DOE points perfectly but oscillates wildly between them — bad extrapolation in unexplored design regions.<br><br>
+                <strong>In surrogate modeling specifically:</strong> The design space is often sparsely sampled (expensive simulations). High-variance models give false confidence — the surrogate says "this design is optimal" but it's just overfitting noise in the DOE. GPs with appropriate kernels offer a natural regularization (kernel smoothness) and uncertainty that grows in data-sparse regions — naturally communicating where the bias-variance trade-off is uncertain.
+            </div>
+        </div>
+
+        <div class="qa-item">
+            <div class="qa-question" onclick="this.parentElement.classList.toggle('open')">
+                <span class="q-text">What is the difference between offline evaluation and online A/B testing for recommendation systems? When can offline metrics be misleading?</span>
+                <span class="q-toggle">▶</span>
+            </div>
+            <div class="qa-answer">
+                <strong>Offline:</strong> Hold out recent interactions, predict them from history. Metrics: Recall@K, NDCG@K, Hit Rate. Fast, cheap, reproducible.<br><br>
+                <strong>Online A/B:</strong> Deploy to real users, measure business metrics (CTR, revenue, engagement, retention). Ground truth from actual behavior.<br><br>
+                <strong>Offline can be misleading because:</strong><br>
+                - <strong>Popularity bias:</strong> Models that recommend popular items score well offline (more positive labels) but don't help users discover new items<br>
+                - <strong>Missing data:</strong> Items not shown can't be interacted with — absence of interaction ≠ negative preference<br>
+                - <strong>Position bias:</strong> Users click higher-ranked items more regardless of relevance<br>
+                - <strong>Feedback loops:</strong> The model that generated the data influences what interactions exist<br><br>
+                Rule of thumb: offline for rapid iteration and filtering bad models; online for final decisions.
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Upasana Ramakrishnan</p>
+    </footer>
+</body>
+</html>
