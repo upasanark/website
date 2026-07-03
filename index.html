@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body class="home-page">
     <script src="nav.js"></script>
@@ -34,198 +34,209 @@
         </div>
     </section>
 
-    <!-- Main Content Grid -->
-    <section class="home-sections">
-        <!-- Learnings Card -->
-        <a href="DeepLearning/" class="section-card">
-            <div class="section-card-header">
-                <div class="section-card-icon">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2v20h20V3z"/><path d="M2 7h20"/><path d="M6 12h12"/><path d="M6 17h12"/></svg>
-                </div>
-                <div>
-                    <h2 class="section-title">Learnings</h2>
-                    <p class="section-subtitle">Deep Learning & ML Methods</p>
-                </div>
+    <!-- Categories Showcase (Immediately After Hero) -->
+    <section class="categories-showcase">
+        <a href="DeepLearning/" class="category-preview">
+            <div class="category-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2v20h20V3z"/><path d="M2 7h20"/><path d="M6 12h12"/><path d="M6 17h12"/></svg>
             </div>
-            <p class="section-description">Comprehensive notes on generative recommendation systems, graph neural networks, and advanced ML techniques.</p>
-            <div class="section-topics">
-                <span class="topic-tag">Generative Retrieval</span>
-                <span class="topic-tag">Graph Methods</span>
-                <span class="topic-tag">LLM Training</span>
+            <h3 class="category-name">Learnings</h3>
+            <p class="category-desc">Deep learning, graphs, recommendation systems</p>
+            <div class="category-items">
+                <span class="category-item">Generative Recommendation</span>
+                <span class="category-item">Graph Methods</span>
+                <span class="category-item">LLM Training</span>
             </div>
+            <span class="category-arrow">Explore →</span>
         </a>
 
-        <!-- Projects Card -->
-        <a href="Projects/" class="section-card">
-            <div class="section-card-header">
-                <div class="section-card-icon">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M2 17h20"/></svg>
-                </div>
-                <div>
-                    <h2 class="section-title">Projects</h2>
-                    <p class="section-subtitle">Applied ML & Engineering</p>
-                </div>
+        <a href="Projects/" class="category-preview">
+            <div class="category-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M2 17h20"/></svg>
             </div>
-            <p class="section-description">Real-world impact from GE Research and Amazon: surrogate modeling, inverse design, and monitoring systems.</p>
-            <div class="section-topics">
-                <span class="topic-tag">ML Surrogates</span>
-                <span class="topic-tag">Design Optimization</span>
-                <span class="topic-tag">Real-time Systems</span>
+            <h3 class="category-name">Projects</h3>
+            <p class="category-desc">Applied ML & engineering work</p>
+            <div class="category-items">
+                <span class="category-item">Surrogate Modeling</span>
+                <span class="category-item">Inverse Design</span>
+                <span class="category-item">Real-time Systems</span>
             </div>
+            <span class="category-arrow">Explore →</span>
         </a>
 
-        <!-- Writings Card -->
-        <a href="Writings/" class="section-card">
-            <div class="section-card-header">
-                <div class="section-card-icon">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-                </div>
-                <div>
-                    <h2 class="section-title">Writings</h2>
-                    <p class="section-subtitle">Essays & Reflections</p>
-                </div>
+        <a href="Writings/" class="category-preview">
+            <div class="category-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
             </div>
-            <p class="section-description">Explorations in consciousness, philosophy, science, and culture. Thoughts on what it means to be human.</p>
-            <div class="section-topics">
-                <span class="topic-tag">Philosophy</span>
-                <span class="topic-tag">Consciousness</span>
-                <span class="topic-tag">Ideas</span>
+            <h3 class="category-name">Writings</h3>
+            <p class="category-desc">Essays & reflections</p>
+            <div class="category-items">
+                <span class="category-item">Philosophy</span>
+                <span class="category-item">Consciousness</span>
+                <span class="category-item">Ideas & Culture</span>
             </div>
+            <span class="category-arrow">Explore →</span>
         </a>
 
-        <!-- Readings Card -->
-        <a href="BookReviews/" class="section-card">
-            <div class="section-card-header">
-                <div class="section-card-icon">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                </div>
-                <div>
-                    <h2 class="section-title">Readings</h2>
-                    <p class="section-subtitle">Books & Reviews</p>
-                </div>
+        <a href="BookReviews/" class="category-preview">
+            <div class="category-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
             </div>
-            <p class="section-description">Notes from books spanning technology, science, philosophy, and fiction. Work in progress.</p>
-            <div class="section-topics">
-                <span class="topic-tag">Technology</span>
-                <span class="topic-tag">Science</span>
-                <span class="topic-tag">Philosophy</span>
+            <h3 class="category-name">Readings</h3>
+            <p class="category-desc">Books & reviews</p>
+            <div class="category-items">
+                <span class="category-item">Technology</span>
+                <span class="category-item">Science</span>
+                <span class="category-item">Philosophy</span>
             </div>
+            <span class="category-arrow">Explore →</span>
+        </a>
+
+        <a href="https://github.com/upasanark?tab=repositories" target="_blank" rel="noopener" class="category-preview">
+            <div class="category-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <h3 class="category-name">Personal Projects</h3>
+            <p class="category-desc">Side projects & experiments</p>
+            <div class="category-items">
+                <span class="category-item">MetABook</span>
+                <span class="category-item">TabSense</span>
+                <span class="category-item">+ More</span>
+            </div>
+            <span class="category-arrow">Explore →</span>
+        </a>
+
+        <a href="https://github.com/upasanark" target="_blank" rel="noopener" class="category-preview">
+            <div class="category-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.81 0-.956.674-2.605.674-2.605.36-.72 0-1.495-1.195-1.495-3.405 0-4.065 2.405-4.065 2.405-.75 1.394-2.215 1.75-2.215 1.75-1.81 1.24.135 1.21.135 1.21 2.005-.135 3.060-2.105 3.060-2.105 1.785-3.074 4.685-2.18 5.835-1.695.165.87.465 1.47.81 1.8-2.835.3-5.82 1.42-5.82 6.02 0 1.33.465 2.43 1.236 3.285-.135.315-.54 1.53.105 3.181 0 0 1.005.32 3.3-1.23.96.27 1.98.405 3.003.405 1.02 0 2.043-.135 3.003-.405 2.28 1.55 3.285 1.23 3.285 1.23.645-1.65.24-2.866.105-3.181.765-.855 1.23-1.955 1.23-3.285 0-4.61-2.995-5.715-5.835-6.015.465-.399.9-1.065.9-2.145 0-1.55-.015-2.8-.015-3.18 0-.315.225-.69.825-.57C20.565 21.795 24 16.41 24 12c0-6.63-5.37-12-12-12"/></svg>
+            </div>
+            <h3 class="category-name">GitHub</h3>
+            <p class="category-desc">All repositories & code</p>
+            <div class="category-items">
+                <span class="category-item">Follow for updates</span>
+                <span class="category-item">Open source work</span>
+                <span class="category-item">Contributions</span>
+            </div>
+            <span class="category-arrow">Visit →</span>
         </a>
     </section>
 
-    <!-- Featured Section -->
-    <section class="featured">
-        <h2>Featured Work</h2>
-        <p class="featured-intro">Highlights from recent projects and learnings</p>
-        
-        <div class="featured-grid">
-            <div class="featured-item">
-                <div class="featured-badge">Project</div>
-                <h3>Surrogate Modeling</h3>
-                <p>ML-powered optimization delivering $4M in savings through intelligent surrogate models.</p>
-                <a href="Projects/wfo-dpc/" class="featured-link">Explore →</a>
-            </div>
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Featured Section -->
+        <section class="featured">
+            <h2>Featured Work</h2>
+            <p class="featured-intro">Highlights from recent projects and learnings</p>
             
-            <div class="featured-item">
-                <div class="featured-badge">Research</div>
-                <h3>Generative Recommendation</h3>
-                <p>Deep dive into sequential recommendation, tokenization, TIGER, and beam search inference.</p>
-                <a href="DeepLearning/GenerativeRecommendation/" class="featured-link">Learn more →</a>
+            <div class="featured-grid">
+                <div class="featured-item">
+                    <div class="featured-badge">Project</div>
+                    <h3>Surrogate Modeling</h3>
+                    <p>ML-powered optimization delivering $4M in savings through intelligent surrogate models.</p>
+                    <a href="Projects/wfo-dpc/" class="featured-link">Explore →</a>
+                </div>
+                
+                <div class="featured-item">
+                    <div class="featured-badge">Research</div>
+                    <h3>Generative Recommendation</h3>
+                    <p>Deep dive into sequential recommendation, tokenization, TIGER, and beam search inference.</p>
+                    <a href="DeepLearning/GenerativeRecommendation/" class="featured-link">Learn more →</a>
+                </div>
+                
+                <div class="featured-item">
+                    <div class="featured-badge">Writing</div>
+                    <h3>Mind-Body Problem</h3>
+                    <p>A series exploring consciousness, identity, and fundamental questions about awareness.</p>
+                    <a href="Writings/Mind-Body Problem/episode1.html" class="featured-link">Read →</a>
+                </div>
             </div>
+        </section>
+
+        <!-- Personal Projects Section -->
+        <section class="personal-projects">
+            <h2>Personal Projects</h2>
+            <p class="featured-intro">Side projects exploring new ideas and technologies</p>
             
-            <div class="featured-item">
-                <div class="featured-badge">Writing</div>
-                <h3>Mind-Body Problem</h3>
-                <p>A series exploring consciousness, identity, and fundamental questions about awareness.</p>
-                <a href="Writings/Mind-Body Problem/episode1.html" class="featured-link">Read →</a>
+            <div class="projects-grid">
+                <a href="https://github.com/upasanark/MetABook-Web" target="_blank" rel="noopener" class="project-card">
+                    <div class="project-header">
+                        <h3>MetABook</h3>
+                        <span class="project-type">Web App</span>
+                    </div>
+                    <p class="project-desc">A personalized book library and discovery platform. Organize your reading collection with metadata, reviews, and recommendations.</p>
+                    <div class="project-meta">
+                        <span class="project-tag">React</span>
+                        <span class="project-tag">Book Management</span>
+                    </div>
+                    <div class="project-link">View on GitHub →</div>
+                </a>
+
+                <a href="https://github.com/upasanark/AutomatedRosterApp" target="_blank" rel="noopener" class="project-card">
+                    <div class="project-header">
+                        <h3>Roster Creation</h3>
+                        <span class="project-type">Application</span>
+                    </div>
+                    <p class="project-desc">Automated scheduling and roster management application. Streamline the process of creating and managing work schedules.</p>
+                    <div class="project-meta">
+                        <span class="project-tag">Scheduling</span>
+                        <span class="project-tag">Automation</span>
+                    </div>
+                    <div class="project-link">View on GitHub →</div>
+                </a>
+
+                <a href="https://github.com/upasanark/TabSense" target="_blank" rel="noopener" class="project-card">
+                    <div class="project-header">
+                        <h3>TabSense</h3>
+                        <span class="project-type">Browser Extension</span>
+                    </div>
+                    <p class="project-desc">Smart browser tab management tool. Organize, search, and manage your browser tabs efficiently.</p>
+                    <div class="project-meta">
+                        <span class="project-tag">Browser</span>
+                        <span class="project-tag">Productivity</span>
+                    </div>
+                    <div class="project-link">View on GitHub →</div>
+                </a>
+
+                <a href="https://github.com/upasanark/PokeBot" target="_blank" rel="noopener" class="project-card">
+                    <div class="project-header">
+                        <h3>PokeBot</h3>
+                        <span class="project-type">Bot / Analysis</span>
+                    </div>
+                    <p class="project-desc">Pokémon data analysis and bot utilities. Explore and analyze Pokémon data with interactive tools.</p>
+                    <div class="project-meta">
+                        <span class="project-tag">Python</span>
+                        <span class="project-tag">Data Analysis</span>
+                    </div>
+                    <div class="project-link">View on GitHub →</div>
+                </a>
+
+                <a href="https://github.com/upasanark/Unravelling-" target="_blank" rel="noopener" class="project-card">
+                    <div class="project-header">
+                        <h3>Unravelling</h3>
+                        <span class="project-type">Interactive Project</span>
+                    </div>
+                    <p class="project-desc">Experimental interactive project exploring complex systems and data visualization.</p>
+                    <div class="project-meta">
+                        <span class="project-tag">JavaScript</span>
+                        <span class="project-tag">Visualization</span>
+                    </div>
+                    <div class="project-link">View on GitHub →</div>
+                </a>
+
+                <a href="https://github.com/upasanark?tab=repositories" target="_blank" rel="noopener" class="project-card project-card-cta">
+                    <div class="project-header">
+                        <h3>All Projects</h3>
+                        <span class="project-type">Browse</span>
+                    </div>
+                    <p class="project-desc">Explore all repositories and ongoing work on GitHub.</p>
+                    <div class="project-meta">
+                        <span class="project-tag">GitHub</span>
+                    </div>
+                    <div class="project-link">See all repos →</div>
+                </a>
             </div>
-        </div>
-    </section>
-
-    <!-- Personal Projects Section -->
-    <section class="personal-projects">
-        <h2>Personal Projects</h2>
-        <p class="section-intro">Side projects exploring new ideas and technologies</p>
-        
-        <div class="projects-grid">
-            <a href="https://github.com/upasanark/MetABook-Web" target="_blank" rel="noopener" class="project-card">
-                <div class="project-header">
-                    <h3>MetABook</h3>
-                    <span class="project-type">Web App</span>
-                </div>
-                <p class="project-desc">A personalized book library and discovery platform. Organize your reading collection with metadata, reviews, and recommendations.</p>
-                <div class="project-meta">
-                    <span class="project-tag">React</span>
-                    <span class="project-tag">Book Management</span>
-                </div>
-                <div class="project-link">View on GitHub →</div>
-            </a>
-
-            <a href="https://github.com/upasanark/AutomatedRosterApp" target="_blank" rel="noopener" class="project-card">
-                <div class="project-header">
-                    <h3>Roster Creation</h3>
-                    <span class="project-type">Application</span>
-                </div>
-                <p class="project-desc">Automated scheduling and roster management application. Streamline the process of creating and managing work schedules.</p>
-                <div class="project-meta">
-                    <span class="project-tag">Scheduling</span>
-                    <span class="project-tag">Automation</span>
-                </div>
-                <div class="project-link">View on GitHub →</div>
-            </a>
-
-            <a href="https://github.com/upasanark/TabSense" target="_blank" rel="noopener" class="project-card">
-                <div class="project-header">
-                    <h3>TabSense</h3>
-                    <span class="project-type">Browser Extension</span>
-                </div>
-                <p class="project-desc">Smart browser tab management tool. Organize, search, and manage your browser tabs efficiently.</p>
-                <div class="project-meta">
-                    <span class="project-tag">Browser</span>
-                    <span class="project-tag">Productivity</span>
-                </div>
-                <div class="project-link">View on GitHub →</div>
-            </a>
-
-            <a href="https://github.com/upasanark/PokeBot" target="_blank" rel="noopener" class="project-card">
-                <div class="project-header">
-                    <h3>PokeBot</h3>
-                    <span class="project-type">Bot / Analysis</span>
-                </div>
-                <p class="project-desc">Pokémon data analysis and bot utilities. Explore and analyze Pokémon data with interactive tools.</p>
-                <div class="project-meta">
-                    <span class="project-tag">Python</span>
-                    <span class="project-tag">Data Analysis</span>
-                </div>
-                <div class="project-link">View on GitHub →</div>
-            </a>
-
-            <a href="https://github.com/upasanark/Unravelling-" target="_blank" rel="noopener" class="project-card">
-                <div class="project-header">
-                    <h3>Unravelling</h3>
-                    <span class="project-type">Interactive Project</span>
-                </div>
-                <p class="project-desc">Experimental interactive project exploring complex systems and data visualization.</p>
-                <div class="project-meta">
-                    <span class="project-tag">JavaScript</span>
-                    <span class="project-tag">Visualization</span>
-                </div>
-                <div class="project-link">View on GitHub →</div>
-            </a>
-
-            <a href="https://github.com/upasanark?tab=repositories" target="_blank" rel="noopener" class="project-card project-card-cta">
-                <div class="project-header">
-                    <h3>All Projects</h3>
-                    <span class="project-type">Browse</span>
-                </div>
-                <p class="project-desc">Explore all repositories and ongoing work on GitHub.</p>
-                <div class="project-meta">
-                    <span class="project-tag">GitHub</span>
-                </div>
-                <div class="project-link">See all repos →</div>
-            </a>
-        </div>
-    </section>
+        </section>
+    </div>
 
     <footer>
         <p>&copy; 2026 Upasana Ramakrishnan</p>
