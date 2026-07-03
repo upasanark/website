@@ -9,207 +9,307 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        /* Career-specific styles */
+        .career-intro {
+            margin-bottom: 2.5rem;
+        }
+        .career-intro p {
+            color: rgba(255,255,255,0.65);
+            font-size: 0.9rem;
+        }
+
+        /* === Timeline === */
         .timeline {
             position: relative;
-            padding: 2rem 0;
+            padding: 1rem 0 2rem;
         }
         .timeline::before {
             content: '';
             position: absolute;
-            left: 50%;
+            left: 24px;
             top: 0;
             bottom: 0;
             width: 2px;
-            background: linear-gradient(180deg, #00d4ff, #7c3aed);
-            transform: translateX(-50%);
+            background: linear-gradient(180deg, #00d4ff 0%, #7c3aed 60%, rgba(124,58,237,0.2) 100%);
         }
-        .timeline-item {
+
+        .tl-item {
             position: relative;
-            display: flex;
-            align-items: flex-start;
-            margin-bottom: 1rem;
-            cursor: pointer;
+            padding-left: 60px;
+            margin-bottom: 0.75rem;
         }
-        .timeline-item:nth-child(odd) {
-            flex-direction: row;
-        }
-        .timeline-item:nth-child(even) {
-            flex-direction: row-reverse;
-        }
-        .timeline-dot {
+
+        .tl-dot {
             position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 14px;
-            height: 14px;
+            left: 16px;
+            top: 1.4rem;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
-            background: #00d4ff;
-            border: 3px solid #1a1a2e;
+            background: #1a1a2e;
+            border: 3px solid #00d4ff;
             z-index: 2;
             transition: all 0.3s;
         }
-        .timeline-item:hover .timeline-dot {
-            transform: translateX(-50%) scale(1.4);
-            box-shadow: 0 0 12px rgba(0, 212, 255, 0.6);
+        .tl-item.edu .tl-dot {
+            border-color: #7c3aed;
         }
-        .timeline-content {
-            width: 45%;
+        .tl-item:hover .tl-dot {
+            transform: scale(1.3);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .tl-card {
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 10px;
-            padding: 1.25rem;
+            padding: 1.25rem 1.5rem;
+            cursor: pointer;
             transition: all 0.3s;
         }
-        .timeline-item:nth-child(odd) .timeline-content {
-            margin-right: auto;
-            margin-left: 0;
+        .tl-card:hover {
+            border-color: rgba(0, 212, 255, 0.35);
+            background: rgba(0, 212, 255, 0.04);
         }
-        .timeline-item:nth-child(even) .timeline-content {
-            margin-left: auto;
-            margin-right: 0;
-        }
-        .timeline-content:hover {
-            border-color: rgba(0, 212, 255, 0.4);
+        .tl-card.expanded {
+            border-color: rgba(0, 212, 255, 0.5);
             background: rgba(0, 212, 255, 0.06);
         }
-        .timeline-content h3 {
-            margin: 0 0 0.2rem;
-            font-size: 1rem;
+
+        .tl-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .tl-company {
+            font-size: 1.1rem;
+            font-weight: 700;
             color: #fff;
-        }
-        .timeline-content .role {
-            font-size: 0.85rem;
-            color: #00d4ff;
-            font-weight: 600;
-            margin-bottom: 0.3rem;
-        }
-        .timeline-content .dates {
-            font-size: 0.75rem;
-            color: rgba(255, 255, 255, 0.5);
-            margin-bottom: 0.5rem;
-        }
-        .timeline-content .summary {
-            font-size: 0.82rem;
-            color: rgba(255, 255, 255, 0.6);
-            line-height: 1.5;
             margin: 0;
         }
-
-        /* Expanded detail panel */
-        .detail-panel {
-            display: none;
-            margin-top: 0.75rem;
-            padding-top: 0.75rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        .tl-dates {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.45);
+            white-space: nowrap;
         }
-        .timeline-content.expanded .detail-panel {
+        .tl-role {
+            font-size: 0.88rem;
+            color: #00d4ff;
+            font-weight: 600;
+            margin: 0.2rem 0 0.4rem;
+        }
+        .tl-summary {
+            font-size: 0.83rem;
+            color: rgba(255,255,255,0.6);
+            margin: 0;
+            line-height: 1.5;
+        }
+        .tl-expand-hint {
+            font-size: 0.68rem;
+            color: rgba(255,255,255,0.35);
+            margin-top: 0.5rem;
+            transition: opacity 0.2s;
+        }
+        .tl-card.expanded .tl-expand-hint {
+            opacity: 0;
+        }
+
+        /* Expanded details */
+        .tl-details {
+            display: none;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .tl-card.expanded .tl-details {
             display: block;
         }
-        .detail-panel ul {
+        .tl-details ul {
             list-style: none;
             padding: 0;
             margin: 0;
         }
-        .detail-panel ul li {
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.7);
-            padding: 0.3rem 0;
-            padding-left: 1rem;
+        .tl-details ul li {
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.7);
+            padding: 0.4rem 0 0.4rem 1rem;
             border-left: 2px solid rgba(0, 212, 255, 0.3);
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.25rem;
+            line-height: 1.5;
         }
-        .detail-panel ul li a {
+        .tl-details ul li a {
             color: #00d4ff;
             font-weight: 600;
         }
-        .click-hint {
+        .tl-details ul li a:hover {
+            text-decoration: underline;
+        }
+        .tl-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.75rem;
+        }
+        .tl-tags span {
             font-size: 0.7rem;
-            color: rgba(255, 255, 255, 0.4);
-            margin-top: 0.5rem;
-            font-style: italic;
+            background: rgba(0,212,255,0.1);
+            color: #00d4ff;
+            padding: 0.2rem 0.55rem;
+            border-radius: 4px;
+            font-weight: 600;
+            border: 1px solid rgba(0,212,255,0.2);
         }
 
-        @media (max-width: 768px) {
-            .timeline::before {
-                left: 20px;
-            }
-            .timeline-dot {
-                left: 20px;
-            }
-            .timeline-item,
-            .timeline-item:nth-child(odd),
-            .timeline-item:nth-child(even) {
-                flex-direction: row;
-                padding-left: 50px;
-            }
-            .timeline-content,
-            .timeline-item:nth-child(odd) .timeline-content,
-            .timeline-item:nth-child(even) .timeline-content {
-                width: 100%;
-                margin: 0;
-            }
+        /* Education section */
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.4);
+            margin: 2rem 0 1rem;
+            padding-left: 60px;
+        }
+
+        @media (max-width: 600px) {
+            .timeline::before { left: 16px; }
+            .tl-dot { left: 8px; }
+            .tl-item { padding-left: 44px; }
+            .section-label { padding-left: 44px; }
         }
     </style>
 </head>
 <body>
     <script src="../nav.js"></script>
 
-    <h1>Career</h1>
-    <p style="color: rgba(255,255,255,0.6); margin-bottom: 0.5rem;">Click any role to expand project details.</p>
+    <div class="career-intro">
+        <h1>Career</h1>
+        <p>Click any role to see project details and links. My work spans recommendation systems, surrogate modeling, real-time anomaly detection, inverse design, and reinforcement learning for control.</p>
+    </div>
 
     <div class="timeline">
 
-        <!-- PLACEHOLDER: Replace with actual career data -->
-        <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <div class="timeline-content" onclick="this.classList.toggle('expanded')">
-                <h3>Company Name</h3>
-                <div class="role">Senior Role Title</div>
-                <div class="dates">2023 — Present</div>
-                <p class="summary">Brief one-liner about focus area and impact.</p>
-                <div class="detail-panel">
-                    <ul>
-                        <li>Key project or achievement</li>
-                        <li>Another major contribution</li>
-                        <li><a href="../Projects/some-project/">Project page →</a></li>
-                    </ul>
+        <!-- Amazon -->
+        <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-card" onclick="this.classList.toggle('expanded')">
+                <div class="tl-header">
+                    <h3 class="tl-company">Amazon</h3>
+                    <span class="tl-dates">Feb 2025 — Present</span>
                 </div>
-                <p class="click-hint">Click to expand</p>
+                <div class="tl-role">Applied Scientist</div>
+                <p class="tl-summary">Recommendation systems, generative retrieval, and personalization at scale.</p>
+                <p class="tl-expand-hint">↓ Click to expand</p>
+                <div class="tl-details">
+                    <ul>
+                        <li>Building graph-based and generative recommendation models for personalized customer experiences</li>
+                        <li>Research on multi-interest user modeling with GNNs and sequential recommendation</li>
+                    </ul>
+                    <div class="tl-tags">
+                        <span>RecSys</span><span>GNNs</span><span>Generative AI</span><span>Personalization</span>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <div class="timeline-content" onclick="this.classList.toggle('expanded')">
-                <h3>Previous Company</h3>
-                <div class="role">Role Title</div>
-                <div class="dates">2020 — 2023</div>
-                <p class="summary">Brief one-liner about focus area and impact.</p>
-                <div class="detail-panel">
-                    <ul>
-                        <li>Key project or achievement</li>
-                        <li>Another major contribution</li>
-                    </ul>
+        <!-- GE Research - Research Scientist -->
+        <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-card" onclick="this.classList.toggle('expanded')">
+                <div class="tl-header">
+                    <h3 class="tl-company">GE Research</h3>
+                    <span class="tl-dates">Jul 2021 — Feb 2025</span>
                 </div>
-                <p class="click-hint">Click to expand</p>
+                <div class="tl-role">Research Scientist</div>
+                <p class="tl-summary">ML for wind energy — surrogate models, inverse design, real-time optimization, and anomaly detection.</p>
+                <p class="tl-expand-hint">↓ Click to expand</p>
+                <div class="tl-details">
+                    <ul>
+                        <li>Led ML and virtual sensing algorithms for real-time wind condition estimation across turbine farms</li>
+                        <li>Built supervisory control platform optimizing turbine operation — <strong>up to 4% gain</strong> in annual energy production</li>
+                        <li>Developed physics + ML surrogate models for turbine load and power prediction, enabling rapid design iteration</li>
+                        <li>Cloud-based real-time decision support for component health with anomaly detection on high-frequency signals</li>
+                        <li><a href="../Projects/wake-mgmt/">Wake Management →</a> Gaussian process wake modeling and farm-level optimization</li>
+                        <li><a href="../Projects/vg/">Vortex Generator →</a> ML inverse design framework reducing wind tunnel costs</li>
+                        <li><a href="../Projects/advent/">ADVENT →</a> EMG signal analysis for respiratory monitoring on ventilators</li>
+                    </ul>
+                    <div class="tl-tags">
+                        <span>Surrogate Models</span><span>Gaussian Processes</span><span>Anomaly Detection</span><span>Reinforcement Learning</span><span>Wind Energy</span>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <div class="timeline-content" onclick="this.classList.toggle('expanded')">
-                <h3>Earlier Company</h3>
-                <div class="role">Role Title</div>
-                <div class="dates">2017 — 2020</div>
-                <p class="summary">Brief one-liner about focus area and impact.</p>
-                <div class="detail-panel">
-                    <ul>
-                        <li>Key project or achievement</li>
-                        <li>Another major contribution</li>
-                    </ul>
+        <!-- GE Research - Edison Program -->
+        <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-card" onclick="this.classList.toggle('expanded')">
+                <div class="tl-header">
+                    <h3 class="tl-company">GE Research</h3>
+                    <span class="tl-dates">Jul 2019 — Jul 2021</span>
                 </div>
-                <p class="click-hint">Click to expand</p>
+                <div class="tl-role">Edison Engineer Development Program</div>
+                <p class="tl-summary">Rotational leadership program — CFD, mesh morphing, EMG signal processing, simulation platforms.</p>
+                <p class="tl-expand-hint">↓ Click to expand</p>
+                <div class="tl-details">
+                    <ul>
+                        <li>Lagrangian vorticity method coupled with fluid-structure interaction for aerodynamic flow analysis</li>
+                        <li>RBF-based global mesh morphing for multidisciplinary design optimization</li>
+                        <li>Signal processing framework for EMG-based respiratory pattern detection in ventilator patients</li>
+                        <li>Integrated simulation platform for wind turbine electrical and mechanical fault testing</li>
+                    </ul>
+                    <div class="tl-tags">
+                        <span>CFD</span><span>Signal Processing</span><span>Mesh Morphing</span><span>Simulation</span><span>Healthcare</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ISRO -->
+        <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-card" onclick="this.classList.toggle('expanded')">
+                <div class="tl-header">
+                    <h3 class="tl-company">ISRO</h3>
+                    <span class="tl-dates">Jun — Jul 2015</span>
+                </div>
+                <div class="tl-role">Operational Orbital Dynamics</div>
+                <p class="tl-summary">Intern — orbital mechanics and satellite dynamics.</p>
+                <p class="tl-expand-hint">↓ Click to expand</p>
+                <div class="tl-details">
+                    <ul>
+                        <li>Worked on operational orbital dynamics at the Indian Space Research Organisation, Bengaluru</li>
+                    </ul>
+                    <div class="tl-tags">
+                        <span>Orbital Mechanics</span><span>Space</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Education -->
+        <div class="section-label">Education</div>
+
+        <div class="tl-item edu">
+            <div class="tl-dot"></div>
+            <div class="tl-card">
+                <div class="tl-header">
+                    <h3 class="tl-company">IIT Madras</h3>
+                    <span class="tl-dates">2017 — 2019</span>
+                </div>
+                <div class="tl-role">M.Tech, Aerospace Engineering</div>
+            </div>
+        </div>
+
+        <div class="tl-item edu">
+            <div class="tl-dot"></div>
+            <div class="tl-card">
+                <div class="tl-header">
+                    <h3 class="tl-company">Hindustan University</h3>
+                    <span class="tl-dates">2013 — 2017</span>
+                </div>
+                <div class="tl-role">B.Tech, Aerospace Engineering</div>
             </div>
         </div>
 
