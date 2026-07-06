@@ -4,118 +4,289 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upasana Ramakrishnan</title>
-    <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-</head>
-<body class="home-page">
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    <!-- Compact Hero -->
-    <section class="hero-compact">
-        <div class="hero-left">
-            <div class="hero-avatar-sm"><span>UR</span></div>
-            <div class="hero-intro">
-                <h1>Upasana Ramakrishnan</h1>
-                <p class="hero-tagline">Engineer · Researcher · Writer</p>
+        body {
+            font-family: "Newsreader", Georgia, serif;
+            background: #fcfaf7;
+            color: #2c2c2c;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Header --- */
+        .site-header {
+            max-width: 980px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 2.5rem 2rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            border-bottom: 1px solid #e8e2da;
+        }
+        .site-header h1 {
+            font-size: 1.4rem;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+            color: #1a1a1a;
+        }
+        .site-header nav {
+            display: flex;
+            gap: 1.8rem;
+        }
+        .site-header nav a {
+            font-family: "Inter", sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-decoration: none;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            transition: color 0.2s;
+        }
+        .site-header nav a:hover { color: #1a1a1a; }
+
+        /* --- Main --- */
+        .main {
+            max-width: 980px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 3rem 2rem;
+            flex: 1;
+        }
+
+        /* --- Intro --- */
+        .intro {
+            max-width: 620px;
+            margin-bottom: 3.5rem;
+        }
+        .intro p {
+            font-size: 1.25rem;
+            line-height: 1.7;
+            color: #3d3d3d;
+            font-weight: 300;
+        }
+        .intro p strong {
+            font-weight: 500;
+            color: #1a1a1a;
+        }
+        .intro .links {
+            margin-top: 1.2rem;
+            display: flex;
+            gap: 1.5rem;
+        }
+        .intro .links a {
+            font-family: "Inter", sans-serif;
+            font-size: 0.78rem;
+            text-decoration: none;
+            color: #888;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 1px;
+            transition: all 0.2s;
+        }
+        .intro .links a:hover {
+            color: #1a1a1a;
+            border-color: #1a1a1a;
+        }
+
+        /* --- Grid --- */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1px;
+            background: #e8e2da;
+            border: 1px solid #e8e2da;
+        }
+        .grid-item {
+            background: #fcfaf7;
+            padding: 2rem;
+            text-decoration: none;
+            transition: background 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        .grid-item:hover {
+            background: #f5f0ea;
+        }
+        .grid-item h2 {
+            font-family: "Inter", sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #999;
+        }
+        .grid-item h3 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #1a1a1a;
+            line-height: 1.3;
+        }
+        .grid-item p {
+            font-size: 0.92rem;
+            color: #666;
+            line-height: 1.55;
+            font-weight: 300;
+        }
+        .grid-item .meta {
+            font-family: "Inter", sans-serif;
+            font-size: 0.7rem;
+            color: #aaa;
+            margin-top: auto;
+            padding-top: 0.5rem;
+        }
+
+        /* --- Recent --- */
+        .recent {
+            margin-top: 3rem;
+            border-top: 1px solid #e8e2da;
+            padding-top: 2rem;
+        }
+        .recent h2 {
+            font-family: "Inter", sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #999;
+            margin-bottom: 1.2rem;
+        }
+        .recent-list {
+            list-style: none;
+        }
+        .recent-list li {
+            border-bottom: 1px solid #f0ebe4;
+        }
+        .recent-list li a {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 0.8rem 0;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+        .recent-list li a:hover {
+            padding-left: 0.5rem;
+        }
+        .recent-list li a span.title {
+            font-size: 1rem;
+            color: #2c2c2c;
+            font-weight: 400;
+        }
+        .recent-list li a:hover span.title {
+            color: #000;
+        }
+        .recent-list li a span.tag {
+            font-family: "Inter", sans-serif;
+            font-size: 0.68rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            flex-shrink: 0;
+        }
+
+        /* --- Footer --- */
+        .site-footer {
+            max-width: 980px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 2rem;
+            border-top: 1px solid #e8e2da;
+            font-family: "Inter", sans-serif;
+            font-size: 0.72rem;
+            color: #bbb;
+        }
+
+        /* --- Responsive --- */
+        @media (max-width: 700px) {
+            .grid { grid-template-columns: 1fr; }
+            .site-header { flex-direction: column; gap: 1rem; align-items: flex-start; }
+            .site-header nav { gap: 1.2rem; }
+            .intro p { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="site-header">
+        <h1>Upasana Ramakrishnan</h1>
+        <nav>
+            <a href="DeepLearning/">Learnings</a>
+            <a href="Career/">Career</a>
+            <a href="Writings/">Writings</a>
+            <a href="BookReviews/">Readings</a>
+        </nav>
+    </header>
+
+    <main class="main">
+        <div class="intro">
+            <p><strong>Applied Scientist</strong> working at the intersection of deep learning, recommendation systems, and real-world optimization. Previously at GE Research — surrogate modeling, inverse design, real-time control for wind energy. I also write about consciousness, philosophy of mind, and the nature of experience.</p>
+            <div class="links">
+                <a href="https://github.com/upasanark" target="_blank">GitHub</a>
+                <a href="https://www.linkedin.com/in/upasana-ramakrishnan-620822b4/" target="_blank">LinkedIn</a>
             </div>
         </div>
-        <div class="hero-right">
-            <a href="https://github.com/upasanark" target="_blank" rel="noopener" class="icon-link" title="GitHub">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.81 0-.956.674-2.605.674-2.605.36-.72 0-1.495-1.195-1.495-3.405 0-4.065 2.405-4.065 2.405-.75 1.394-2.215 1.75-2.215 1.75-1.81 1.24.135 1.21.135 1.21 2.005-.135 3.06-2.105 3.06-2.105 1.785-3.074 4.685-2.18 5.835-1.695.165.87.465 1.47.81 1.8-2.835.3-5.82 1.42-5.82 6.02 0 1.33.465 2.43 1.236 3.285-.135.315-.54 1.53.105 3.181 0 0 1.005.32 3.3-1.23.96.27 1.98.405 3.003.405 1.02 0 2.043-.135 3.003-.405 2.28 1.55 3.285 1.23 3.285 1.23.645-1.65.24-2.866.105-3.181.765-.855 1.23-1.955 1.23-3.285 0-4.61-2.995-5.715-5.835-6.015.465-.399.9-1.065.9-2.145 0-1.55-.015-2.8-.015-3.18 0-.315.225-.69.825-.57C20.565 21.795 24 16.41 24 12c0-6.63-5.37-12-12-12"/></svg>
+
+        <div class="grid">
+            <a href="DeepLearning/" class="grid-item">
+                <h2>Research Notes</h2>
+                <h3>Deep Learning for Recommendations</h3>
+                <p>Graph neural networks, generative retrieval, sequential models, TIGER, tokenization, beam search.</p>
+                <span class="meta">2 courses · 16 chapters</span>
             </a>
-            <a href="https://www.linkedin.com/in/upasana-ramakrishnan/" target="_blank" rel="noopener" class="icon-link" title="LinkedIn">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z"/></svg>
+            <a href="Career/" class="grid-item">
+                <h2>Career</h2>
+                <h3>Amazon · GE Research · ISRO</h3>
+                <p>Recommendation systems, surrogate modeling, inverse design, real-time anomaly detection, supervisory control.</p>
+                <span class="meta">Interactive timeline</span>
+            </a>
+            <a href="Writings/" class="grid-item">
+                <h2>Writings</h2>
+                <h3>Philosophy & Consciousness</h3>
+                <p>The mind-body problem, Samkhya, Vedanta, AI awareness — exploring what makes us who we are.</p>
+                <span class="meta">Ongoing series</span>
+            </a>
+            <a href="BookReviews/" class="grid-item">
+                <h2>Readings</h2>
+                <h3>Books & Reviews</h3>
+                <p>Technology, neuroscience, philosophy, fiction — reflections on what I'm reading.</p>
+                <span class="meta">Coming soon</span>
             </a>
         </div>
-    </section>
 
-    <!-- Dense Category Grid -->
-    <section class="grid-section">
-        <div class="grid-3">
-            <a href="DeepLearning/" class="card">
-                <div class="card-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m-7.07-3.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4m-3.93 7.07l-2.83-2.83M6.34 6.34L3.51 3.51"/></svg>
-                </div>
-                <h3>Learnings</h3>
-                <p>Graph neural networks, generative recommendation, LLM training techniques</p>
-                <div class="card-tags">
-                    <span>GNNs</span><span>TIGER</span><span>Beam Search</span>
-                </div>
-            </a>
-
-            <a href="Career/" class="card">
-                <div class="card-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
-                </div>
-                <h3>Career &amp; Projects</h3>
-                <p>Amazon, GE Research, ISRO — surrogate models, inverse design, real-time ML</p>
-                <div class="card-tags">
-                    <span>ML</span><span>Wind Energy</span><span>RecSys</span>
-                </div>
-            </a>
-
-            <a href="Writings/" class="card">
-                <div class="card-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-                </div>
-                <h3>Writings</h3>
-                <p>Philosophy, consciousness, culture — the mind-body problem series</p>
-                <div class="card-tags">
-                    <span>Philosophy</span><span>Consciousness</span><span>Essays</span>
-                </div>
-            </a>
-
-            <a href="BookReviews/" class="card">
-                <div class="card-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                </div>
-                <h3>Readings</h3>
-                <p>Book reviews across technology, science, philosophy, and fiction</p>
-                <div class="card-tags">
-                    <span>Tech</span><span>Science</span><span>Fiction</span>
-                </div>
-            </a>
-
-            <a href="https://github.com/upasanark?tab=repositories" target="_blank" rel="noopener" class="card">
-                <div class="card-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                </div>
-                <h3>Side Projects</h3>
-                <p>MetABook, TabSense, PokeBot, Unravelling — experiments and tools</p>
-                <div class="card-tags">
-                    <span>React</span><span>Python</span><span>Extensions</span>
-                </div>
-            </a>
-
-
+        <div class="recent">
+            <h2>Recent</h2>
+            <ul class="recent-list">
+                <li><a href="Writings/memory-and-identity/">
+                    <span class="title">Memory, Identity, and the Missing Self in AI</span>
+                    <span class="tag">Essay</span>
+                </a></li>
+                <li><a href="DeepLearning/GenerativeRecommendation/">
+                    <span class="title">Generative Retrieval for Recommendations</span>
+                    <span class="tag">Course</span>
+                </a></li>
+                <li><a href="Writings/Mind-Body Problem/episode1.html">
+                    <span class="title">What Makes Us Alive</span>
+                    <span class="tag">Episode 1</span>
+                </a></li>
+                <li><a href="https://github.com/upasanark?tab=repositories" target="_blank">
+                    <span class="title">Side Projects — MetABook, TabSense, PokeBot</span>
+                    <span class="tag">GitHub</span>
+                </a></li>
+            </ul>
         </div>
-    </section>
+    </main>
 
-    <!-- Highlights row -->
-    <section class="highlights">
-        <h2>Highlights</h2>
-        <div class="highlight-row">
-            <a href="Career/" class="highlight-card">
-                <span class="hl-badge">Project</span>
-                <strong>Surrogate Modeling</strong>
-                <p>ML-powered optimization — $4M savings</p>
-            </a>
-            <a href="DeepLearning/GenerativeRecommendation/" class="highlight-card">
-                <span class="hl-badge">Research</span>
-                <strong>Generative Recommendation</strong>
-                <p>TIGER, tokenization, beam search</p>
-            </a>
-            <a href="Writings/Mind-Body Problem/episode1.html" class="highlight-card">
-                <span class="hl-badge">Writing</span>
-                <strong>Mind-Body Problem</strong>
-                <p>Consciousness and identity series</p>
-            </a>
-        </div>
-    </section>
-
-    <footer>
-        <p>&copy; 2026 Upasana Ramakrishnan</p>
+    <footer class="site-footer">
+        © 2026 Upasana Ramakrishnan
     </footer>
+
 </body>
 </html>
